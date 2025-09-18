@@ -55,6 +55,8 @@ void broadcastFullState();
 void parseHexColor(const char* hex, uint8_t& r, uint8_t& g, uint8_t& b);
 void loadPumpStates();
 void savePumpStates();
+JsonDocument readSchedules();
+bool writeSchedules(const JsonDocument& doc);
 
 
 void setup() {
@@ -91,6 +93,80 @@ void setup() {
 
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(200, "text/html", getMainPage());
+    });
+
+    // --- API de Agendamentos ---
+    
+    // GET /api/schedules - Listar todos os agendamentos
+    server.on("/api/schedules", HTTP_GET, [](AsyncWebServerRequest *request) {
+        JsonDocument doc = readSchedules();
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response);
+    });
+
+    // POST /api/schedules - Criar novo agendamento
+    server.on("/api/schedules", HTTP_POST, [](AsyncWebServerRequest *request) {
+        // Resposta será enviada no handler do body
+    }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+        // Handler do body da requisição
+        JsonDocument requestDoc;
+        DeserializationError error = deserializeJson(requestDoc, data, len);
+        
+        if (error) {
+            request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+            return;
+        }
+        
+        // Gera ID único baseado no timestamp
+        unsigned long scheduleId = millis();
+        requestDoc["id"] = scheduleId;
+        requestDoc["created"] = scheduleId;
+        requestDoc["enabled"] = true; // Padrão habilitado
+        
+        // Lê agendamentos existentes
+        JsonDocument schedulesDoc = readSchedules();
+        JsonArray schedules = schedulesDoc.as<JsonArray>();
+        
+        // Adiciona novo agendamento
+        schedules.add(requestDoc);
+        
+        // Salva de volta
+        if (writeSchedules(schedulesDoc)) {
+            String response;
+            serializeJson(requestDoc, response);
+            request->send(201, "application/json", response);
+        } else {
+            request->send(500, "application/json", "{\"error\":\"Failed to save schedule\"}");
+        }
+    });
+
+    // DELETE /api/schedules/{id} - Remover agendamento
+    server.on("^\\/api\\/schedules\\/(\\d+)$", HTTP_DELETE, [](AsyncWebServerRequest *request) {
+        String idParam = request->pathArg(0);
+        unsigned long scheduleId = idParam.toInt();
+        
+        JsonDocument schedulesDoc = readSchedules();
+        JsonArray schedules = schedulesDoc.as<JsonArray>();
+        
+        bool found = false;
+        for (size_t i = 0; i < schedules.size(); i++) {
+            if (schedules[i]["id"] == scheduleId) {
+                schedules.remove(i);
+                found = true;
+                break;
+            }
+        }
+        
+        if (found) {
+            if (writeSchedules(schedulesDoc)) {
+                request->send(204); // No Content
+            } else {
+                request->send(500, "application/json", "{\"error\":\"Failed to save changes\"}");
+            }
+        } else {
+            request->send(404, "application/json", "{\"error\":\"Schedule not found\"}");
+        }
     });
 
     server.onNotFound([](AsyncWebServerRequest *request) {
@@ -349,6 +425,51 @@ void loadPumpStates() {
         }
     }
     preferences.end();
+}
+
+// --- Funções de Agendamento ---
+
+JsonDocument readSchedules() {
+    JsonDocument doc;
+    File file = SPIFFS.open("/schedules.json", "r");
+    
+    if (!file) {
+        Serial.println("📄 Arquivo de agendamentos não encontrado, criando array vazio");
+        doc.to<JsonArray>(); // Cria um array vazio
+        return doc;
+    }
+    
+    DeserializationError error = deserializeJson(doc, file);
+    file.close();
+    
+    if (error) {
+        Serial.printf("❌ Erro ao ler agendamentos: %s\n", error.c_str());
+        doc.to<JsonArray>(); // Retorna array vazio em caso de erro
+        return doc;
+    }
+    
+    Serial.printf("📄 %d agendamentos carregados\n", doc.size());
+    return doc;
+}
+
+bool writeSchedules(const JsonDocument& doc) {
+    File file = SPIFFS.open("/schedules.json", "w");
+    
+    if (!file) {
+        Serial.println("❌ Erro ao abrir arquivo de agendamentos para escrita");
+        return false;
+    }
+    
+    size_t bytesWritten = serializeJson(doc, file);
+    file.close();
+    
+    if (bytesWritten == 0) {
+        Serial.println("❌ Erro ao salvar agendamentos");
+        return false;
+    }
+    
+    Serial.printf("💾 %d agendamentos salvos (%d bytes)\n", doc.size(), bytesWritten);
+    return true;
 }
 
 String getConfigPage() {

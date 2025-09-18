@@ -1,3 +1,5 @@
-https://github.com/me-no-dev/AsyncTCP.git
-bblanchon/ArduinoJson@^7.0.4
 https://github.com/me-no-dev/ESPAsyncWebServer.git
+bblanchon/ArduinoJson@^7.0.4
+https://github.com/me-no-dev/AsyncTCP.git
+milesburton/DallasTemperature@^3.11.0
+paulstoffregen/OneWire@^2.3.7

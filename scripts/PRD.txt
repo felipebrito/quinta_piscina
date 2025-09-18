@@ -26,6 +26,18 @@ O produto é destinado a proprietários de piscinas que desejam automatizar e ot
 - **Integração Tuya/Sonoff**: Controle via assistentes de voz e aplicativos móveis
 - **Interface Web Moderna**: Dashboard responsivo desenvolvido com Shadcn/UI
 
+## Sistema de Segurança e Proteção
+- **Botão de Emergência**: Parada instantânea de todas as bombas com um único comando
+- **Failsafe Automático**: Desligamento automático em caso de falhas de comunicação ou sensores
+- **Timeouts de Segurança**: Limites máximos de tempo de operação para cada bomba
+- **Validação de Estados**: Verificação de condições seguras antes de ativar equipamentos
+- **Monitoramento de Saúde**: Detecção de anomalias e alertas de manutenção preventiva
+- **Logs de Auditoria**: Registro de todas as ações críticas para rastreabilidade
+- **Modo de Manutenção**: Bloqueio seguro para trabalhos técnicos
+- **Proteção contra Sobrecarga**: Monitoramento de corrente e desligamento automático
+- **Watchdog Timer**: Reset automático do sistema em caso de travamento
+- **Heartbeat Monitoring**: Verificação contínua de funcionamento dos componentes críticos
+
 # User Experience  
 ## Personas
 - **Proprietário Tech-Savvy**: Usuário que valoriza automação e controle granular
@@ -54,6 +66,14 @@ O produto é destinado a proprietários de piscinas que desejam automatizar e ot
 - **Sensores**: DS18B20 (temperatura), LDR (luminosidade)
 - **Quadro Elétrico**: Proteções e distribuição para bombas
 
+## Safety & Security Components
+- **Hardware Watchdog**: Timer dedicado para reset em caso de travamento
+- **Emergency Stop Circuit**: Circuito físico independente para parada de emergência
+- **Current Sensors**: Monitoramento de corrente para detecção de sobrecargas
+- **Temperature Monitoring**: Sensores de temperatura nos drivers de potência
+- **Isolated Relays**: Relés com isolação óptica para proteção do microcontrolador
+- **Backup Power**: Capacitor ou bateria para operação de emergência
+
 ## Software Stack
 - **Firmware ESP32**: Arduino/ESP-IDF com bibliotecas Tuya SDK
 - **Frontend**: Next.js 14 + TypeScript + Shadcn/UI + Tailwind CSS
@@ -79,13 +99,15 @@ O produto é destinado a proprietários de piscinas que desejam automatizar e ot
 - **Installation**: Quadro elétrico com proteções adequadas
 
 # Development Roadmap  
-## Phase 1: MVP Core (Hardware + Basic Control)
+## Phase 1: MVP Core (Hardware + Basic Control + Safety)
 - Configuração do ambiente de desenvolvimento com esptool
 - Implementação do firmware básico ESP32 com controle de relés
+- **Sistema de Segurança Básico**: Botão de emergência, timeouts, watchdog
 - Interface web simples para controle manual das 4 bombas
 - Leitura básica de sensores de temperatura e luminosidade
 - Access Point local para conexão direta
 - Dashboard inicial com Shadcn/UI mostrando status em tempo real
+- **Logs de Segurança**: Auditoria básica de ações críticas
 
 ## Phase 2: Automation & Smart Features
 - Lógica de automação baseada em sensores
@@ -137,6 +159,22 @@ O produto é destinado a proprietários de piscinas que desejam automatizar e ot
 16. **Maintenance**: OTA updates e diagnósticos
 
 # Risks and Mitigations  
+## Safety & Security Risks
+- **Risk**: Falha no botão de emergência durante situação crítica
+- **Mitigation**: Circuito de emergência independente + múltiplas formas de acionamento
+
+- **Risk**: Travamento do sistema deixando bombas ligadas indefinidamente
+- **Mitigation**: Hardware watchdog + timeouts automáticos + monitoramento externo
+
+- **Risk**: Sobrecarga elétrica danificando equipamentos ou causando incêndio
+- **Mitigation**: Sensores de corrente + proteções físicas + desligamento automático
+
+- **Risk**: Acesso não autorizado ao sistema de controle
+- **Mitigation**: Autenticação + logs de auditoria + modo de manutenção protegido
+
+- **Risk**: Operação perigosa por comando incorreto (manual ou automático)
+- **Mitigation**: Validação de estados + confirmação para ações críticas + limites seguros
+
 ## Technical Challenges
 - **Risk**: Conectividade WiFi instável em ambiente de piscina
 - **Mitigation**: Implementar reconexão automática e modo offline robusto
@@ -173,6 +211,15 @@ O produto é destinado a proprietários de piscinas que desejam automatizar e ot
 - **Sensores**: DS18B20 (±0.5°C), LDR + resistor 10kΩ
 - **LEDs**: Fita LED RGB 12V com driver PWM
 - **Power**: Fonte 12V/5A + regulador 3.3V para ESP32
+
+## Safety Specifications
+- **Emergency Stop**: Resposta < 100ms, múltiplos triggers (botão físico + web + comando)
+- **Timeouts**: Máximo 4h operação contínua por bomba, configurável por tipo
+- **Watchdog**: Reset automático em 30s se sistema não responder
+- **Current Monitoring**: Limite 12A por relé, shutdown automático em 110% do nominal
+- **Temperature Limits**: Shutdown em 85°C nos drivers, 60°C no ESP32
+- **Audit Logging**: 1000 eventos em SPIFFS, rotação automática
+- **Fail-Safe Mode**: Estado seguro = todas as bombas desligadas
 
 ## Development Tools
 - **Firmware**: Arduino IDE + ESP32 Board Package + esptool

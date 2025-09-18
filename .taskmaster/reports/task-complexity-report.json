@@ -1,125 +1,109 @@
 {
 	"meta": {
-		"generatedAt": "2025-09-18T01:54:21.124Z",
-		"tasksAnalyzed": 14,
-		"totalTasks": 14,
-		"analysisCount": 14,
+		"generatedAt": "2025-09-18T03:43:16.743Z",
+		"tasksAnalyzed": 12,
+		"totalTasks": 22,
+		"analysisCount": 12,
 		"thresholdScore": 5,
 		"projectName": "Taskmaster",
 		"usedResearch": true
 	},
 	"complexityAnalysis": [
 		{
-			"taskId": 1,
-			"taskTitle": "Firmware: Implement Relay Control Logic and WebSocket Handler",
-			"complexityScore": 4,
-			"recommendedSubtasks": 3,
-			"expansionPrompt": "In `src/main.cpp`, define an array for the 4 relay GPIO pins and a corresponding boolean array to hold their states. In `setup()`, iterate through the pin array to configure each pin as `OUTPUT`. Create a function `void setPumpState(int pumpId, bool state)` that validates the `pumpId`, updates the state array, and calls `digitalWrite`. In the existing `onWsEvent` WebSocket event handler, add logic to parse incoming JSON messages using `ArduinoJson`. If the message `action` is `set_pump`, extract `pump_id` and `state`, then call your new `setPumpState` function.",
-			"reasoning": "Codebase analysis indicates a barebones `main.cpp` with web server and WebSocket instances likely present, but no application logic. This task is foundational and requires creating new functions and logic from scratch. Complexity is moderate (4/10) because it involves integrating three distinct components: GPIO hardware control, WebSocket event handling, and JSON parsing (`ArduinoJson`), which must work together seamlessly. It's not just a simple modification but the creation of a core control loop."
-		},
-		{
-			"taskId": 2,
-			"taskTitle": "Frontend: Implement Pump Control Switches",
-			"complexityScore": 3,
-			"recommendedSubtasks": 2,
-			"expansionPrompt": "In the Next.js frontend, locate the React component responsible for rendering a pump's controls (e.g., in `app/page.tsx` or a dedicated `components/PumpCard.tsx`). Assuming a WebSocket context or hook (`useWebSocket`) is available, add an `onCheckedChange` handler to the Shadcn/UI `<Switch>` component. Inside this handler, construct the JSON message `{\"action\": \"set_pump\", \"pump_id\": <pump_index>, \"state\": <new_checked_state>}` and send it using the WebSocket instance's `sendMessage` function.",
-			"reasoning": "Codebase analysis assumes a standard Next.js project with Shadcn/UI and a basic WebSocket connection utility already established. This task is low complexity (3/10) as it primarily involves wiring an existing UI component's event (`onCheckedChange`) to an existing WebSocket sending function. It does not require complex state management or new component creation, but rather connecting pre-existing dots."
-		},
-		{
-			"taskId": 3,
-			"taskTitle": "Firmware: Implement Sensor Reading for DS18B20 and LDR",
-			"complexityScore": 5,
-			"recommendedSubtasks": 4,
-			"expansionPrompt": "First, add `paulstoffregen/OneWire` and `milesburton/DallasTemperature` to `lib_deps` in `platformio.ini`. In `src/main.cpp`, include the headers, define the `ONE_WIRE_BUS` and LDR ADC pins, and create global instances for `OneWire` and `DallasTemperature`. In `setup()`, initialize the sensors. In the main `loop()`, create a non-blocking timer using `millis()` that triggers every 5 seconds. Inside this timer, call `sensors.requestTemperatures()`, read the value with `getTempCByIndex(0)`, and use `analogRead()` for the LDR, mapping its value to a 0-100 percentage. Store both readings in global state variables.",
-			"reasoning": "Codebase analysis shows no existing sensor logic. This task has a medium complexity (5/10) because it requires adding and configuring new libraries (`OneWire`, `DallasTemperature`) and implementing a non-blocking read pattern using `millis()`. Correctly implementing non-blocking timers is crucial for system stability and is more complex than simple linear code, representing a common challenge in embedded development."
-		},
-		{
-			"taskId": 4,
-			"taskTitle": "Firmware: Broadcast Full Device State via WebSocket",
-			"complexityScore": 4,
-			"recommendedSubtasks": 3,
-			"expansionPrompt": "In `src/main.cpp`, create a new non-blocking timer in the `loop()` function using `millis()` to run every 2 seconds. Implement a new function, `broadcastDeviceState()`, that is called by this timer. Inside this function, create a `StaticJsonDocument` and populate it with the current pump states from the global array and the current sensor values from their global variables, matching the structure `{\"pumps\": [...], \"sensors\": {\"temperature\": ..., \"luminosity\": ...}}`. Serialize the document to a string and broadcast it to all connected WebSocket clients using `ws.textAll()`.",
-			"reasoning": "This task builds upon the state variables established in Tasks 1 and 3. The complexity is moderate (4/10) because it involves creating a properly structured and potentially nested JSON object with `ArduinoJson`, which is more involved than simple parsing. It also requires adding another independent `millis()`-based timer to the main loop, which needs to coexist with other timed events without causing interference."
-		},
-		{
-			"taskId": 5,
-			"taskTitle": "Frontend: Display Real-time Sensor Data and Pump Status",
-			"complexityScore": 4,
-			"recommendedSubtasks": 4,
-			"expansionPrompt": "In the main dashboard component (`frontend/app/page.tsx`), define a `useState` hook to hold the entire device state object. Create a `useEffect` hook that listens for new messages from your WebSocket provider. Inside the effect, parse the incoming JSON message and update the state using `setDeviceState`. Then, bind the UI elements to this state: the `checked` prop of each `<Switch>` should be set to `deviceState.pumps[i]`, and text elements should display `deviceState.sensors.temperature` and `deviceState.sensors.luminosity`.",
-			"reasoning": "Analysis of the frontend structure suggests a central component for the dashboard. The complexity is moderate (4/10) because this task establishes the primary data-binding loop for the UI. It involves creating a centralized state model, using a `useEffect` for handling asynchronous data, and converting previously uncontrolled components (like the switches from Task 2) into controlled components that react to state changes, which is a key React concept."
-		},
-		{
-			"taskId": 6,
-			"taskTitle": "Firmware: Persist Pump States in Non-Volatile Storage (NVS)",
-			"complexityScore": 2,
-			"recommendedSubtasks": 2,
-			"expansionPrompt": "In `src/main.cpp`, include `<Preferences.h>` and instantiate a `Preferences` object. In `setup()`, call `preferences.begin(\"pump-states\", false)`. Use `preferences.getBytes(\"states\", ...)` to read the saved state into your global pump state array and then loop through it, calling `setPumpState` to apply the restored states. Modify the `setPumpState` function to call `preferences.putBytes(\"states\", ...)` to save the entire updated pump state array after any state change.",
-			"reasoning": "Codebase analysis shows no usage of NVS. However, this task is of low complexity (2/10) because it uses the high-level and straightforward `Preferences` library, which is a standard part of the ESP32 Arduino core. The implementation involves adding a few lines of code in two well-defined places: `setup()` for reading and the existing `setPumpState` function for writing. It's a simple, self-contained addition."
-		},
-		{
-			"taskId": 7,
-			"taskTitle": "Firmware: Implement REST API for Schedule Management",
-			"complexityScore": 7,
-			"recommendedSubtasks": 5,
-			"expansionPrompt": "First, add `#include <LittleFS.h>` and initialize it in `setup()` with `LittleFS.begin(true)`. Then, register three new `AsyncWebServer` routes: 1) `server.on(\"/api/schedules\", HTTP_GET, ...)` to read and return `/schedules.json` from LittleFS. 2) `server.on(\"/api/schedules\", HTTP_POST, ...)` with a body handler to parse the incoming JSON, read the existing file, add the new schedule to a `JsonDocument`, and write it back. 3) `server.on(\"/api/schedules/.*\", HTTP_DELETE, ...)` to extract the ID, read the file, remove the corresponding object from the JSON array, and rewrite the file.",
-			"reasoning": "Codebase analysis shows an `AsyncWebServer` instance but no filesystem or REST API endpoints. This task is complex (7/10) because it requires greenfield development of a full CRUD API on a resource-constrained device. It involves multiple new concepts: initializing and using a filesystem (LittleFS), handling different HTTP methods (GET, POST, DELETE), processing request bodies and URL parameters, and performing robust file-based JSON array manipulation, which is prone to errors."
-		},
-		{
 			"taskId": 8,
 			"taskTitle": "Firmware: Implement Scheduling Engine",
-			"complexityScore": 8,
+			"complexityScore": 7,
 			"recommendedSubtasks": 5,
-			"expansionPrompt": "In `setup()`, configure the NTP client using `configTime()` with the correct timezone string and NTP server. Create a function to load schedules from `/schedules.json` into a global array of structs at startup. In the main `loop()`, add a new non-blocking timer that runs every 10-15 seconds. Inside this timer, get the current local time using `getLocalTime()`. Iterate through the loaded schedules, comparing the current time against each schedule's active window. If a schedule should be active, call `setPumpState`. Crucially, implement state management to handle conflicts with manual control and to ensure actions are triggered only on state transitions (e.g., when a schedule starts or ends), not on every check.",
-			"reasoning": "Codebase analysis confirms no time or scheduling logic exists. This is a high-complexity task (8/10). Time-based logic is inherently complex, with risks related to timezones, DST, and edge cases like midnight rollovers. The most significant challenge, however, is designing a robust state machine that can resolve conflicts between manual user control and the automated schedule, preventing pumps from 'flapping' (turning on and off rapidly) and ensuring predictable behavior. This requires more than simple time comparison; it requires thoughtful architectural design."
+			"expansionPrompt": "Based on the analysis of `firmware/src/main.cpp`, the task is to implement a new scheduling engine. You will need to add NTP client logic to `setup()` after WiFi connects, define a `Schedule` struct, and create a new `scheduler.cpp`/`.h` module. This module should contain a `checkSchedules()` function that is called from the main `loop()`. This function will iterate through a global vector of schedules, compare against the current time (fetched via a non-blocking mechanism in the loop), and call the existing `setPumpState()` function when a state change is required. Ensure you add `SCHEDULE` to the `StateChangeOrigin` enum.",
+			"reasoning": "The codebase has no existing time synchronization (NTP) or scheduling logic. This feature must be built from scratch. It involves adding new libraries, defining data structures for schedules, managing time in the main loop, and creating a new evaluation function. The complexity is moderated by the existence of a clean `setPumpState` function, which can be called directly by the new scheduler, simplifying the final integration step."
 		},
 		{
 			"taskId": 9,
 			"taskTitle": "Frontend: Create Schedule Management UI",
-			"complexityScore": 6,
+			"complexityScore": 7,
 			"recommendedSubtasks": 5,
-			"expansionPrompt": "Create a new Next.js page at `app/schedules/page.tsx`. On this page, use a `useEffect` hook to `fetch` data from the ESP32's `/api/schedules` endpoint. Render this data using the Shadcn/UI `<Table>` component. Add a `<Button>` that opens a `<Dialog>` containing a form for creating a schedule (with inputs for pump, time, etc.). On form submission, send a `POST` request to `/api/schedules`. In the table, add a delete button to each row that sends a `DELETE` request to `/api/schedules/{id}`. Ensure the table state is refreshed after create or delete operations.",
-			"reasoning": "Analysis shows no existing UI for this feature. This is a moderately high complexity frontend task (6/10). While it follows a standard CRUD pattern, it involves creating a significant new feature from scratch: a new page, data fetching for a new API, complex form state management within a dialog, and handling the full lifecycle (Create, Read, Delete) of a data type. It requires composing multiple non-trivial Shadcn/UI components (`Table`, `Dialog`, `Form`) into a cohesive user experience."
+			"expansionPrompt": "You need to build a new schedule management feature in the Next.js frontend. Start by creating a `ScheduleDialog` component in `frontend/src/components/schedules/`. Use Shadcn's `<Dialog>` and add a trigger button to `page.tsx`. Inside the dialog, use `useEffect` to fetch data from the `/api/schedules` endpoint and display it in a Shadcn `<Table>`. Add a form using `react-hook-form` and `zod` for creating new schedules (POST) and include a delete button in each table row to handle deletion (DELETE). Ensure the table refreshes automatically after creation or deletion.",
+			"reasoning": "The frontend codebase in `frontend/src/app/page.tsx` is basic and contains no components or logic for schedule management. This task requires building a complete CRUD interface from scratch using Shadcn/UI components like Dialog, Table, and Form. It involves creating new components, managing local state, and implementing multiple API client functions for fetching, creating, and deleting schedules."
 		},
 		{
 			"taskId": 10,
 			"taskTitle": "Firmware: Implement RGB LED PWM Control",
 			"complexityScore": 4,
-			"recommendedSubtasks": 4,
-			"expansionPrompt": "In `src/main.cpp`, define the GPIO pins for R, G, and B. In `setup()`, configure three separate LEDC channels using `ledcSetup()` (e.g., channels 0-2, 5000 Hz, 8-bit resolution) and attach each pin to its channel using `ledcAttachPin()`. Create a function `void setRgbColor(int r, int g, int b)` that calls `ledcWrite()` on each channel. Finally, update your WebSocket event handler to parse an `action` of `set_rgb`, extract the nested `color` object from the JSON, and call `setRgbColor()`.",
-			"reasoning": "Codebase analysis shows no PWM/LEDC usage. The complexity is moderate (4/10). While not as simple as `digitalWrite`, using the ESP32's LEDC peripheral is a standard procedure. The complexity comes from the multi-step setup process (configuring channels, frequency, resolution, and attaching pins for three separate outputs) and extending the WebSocket JSON parser to handle a nested object for the color data."
-		},
-		{
-			"taskId": 11,
-			"taskTitle": "Frontend: Add RGB Color Picker to Dashboard",
-			"complexityScore": 4,
-			"recommendedSubtasks": 4,
-			"expansionPrompt": "First, `npm install react-color`. Create a new component, `RgbControl.tsx`. Use a Shadcn/UI `<Popover>` triggered by a `<Button>` whose background color reflects the current light color. The popover's content should be a color picker from `react-color` (e.g., `<SketchPicker />`). In the `onChangeComplete` handler, construct and send the `{\"action\": \"set_rgb\", ...}` WebSocket message. This component should receive the current color from the main device state to correctly display the button and picker's initial color.",
-			"reasoning": "This task involves integrating a new third-party library (`react-color`) into the existing frontend. The complexity is moderate (4/10) as it requires not only adding the component but also managing its state within a popover for better UX, handling its specific event (`onChangeComplete`) to send data, and ensuring it's a fully controlled component by binding its displayed color to the global state received over WebSocket."
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Based on `firmware/src/main.cpp`, implement RGB LED control. First, define GPIO pins and LEDC channel constants at the top of the file. In `setup()`, use `ledcSetup()` and `ledcAttachPin()` to configure the three PWM channels. Create a `setRgbColor(r, g, b)` function that calls `ledcWrite()` and stores the state in global variables. Extend the `handleWebSocketMessage` function with a new `else if` block to parse a `set_rgb` command and call your new function. Finally, modify `broadcastState()` to include the current RGB values in the JSON payload.",
+			"reasoning": "The project does not currently use the ESP32's LEDC (PWM) peripheral. This task requires adding new hardware initialization code in `setup()` for the three RGB channels. However, the pattern for adding new functionality is clear. The `handleWebSocketMessage` function in `src/main.cpp` can be easily extended with an `else if` block for a `set_rgb` action. Similarly, the new RGB state can be added to the JSON object in the existing `broadcastState` function."
 		},
 		{
 			"taskId": 12,
 			"taskTitle": "Firmware: Integrate Tuya IoT SDK for Cloud Connectivity",
-			"complexityScore": 10,
-			"recommendedSubtasks": 6,
-			"expansionPrompt": "Research and add the official `tuya-iot-arduino-sdk` (or equivalent) to `platformio.ini`. Create a `tuya_config.h` to store the Product ID and secret keys from the Tuya platform. In `main.cpp`, implement the extensive boilerplate for initializing the SDK in `setup()`. Implement the necessary callback functions for network events and DP commands. Critically, you must integrate the SDK's main processing function (e.g., `tuya_loop()`) into the existing `loop()` and implement a way to trigger the SDK's WiFi provisioning mode (e.g., via a button press on boot).",
-			"reasoning": "This is a greenfield integration of a large, complex, and opinionated third-party SDK. It scores the highest complexity (10/10) because it's an architectural-level change, not just a feature addition. It will deeply impact the main application loop, event handling, and memory usage. The process involves library management, complex configuration, implementing a new network provisioning workflow, and weaving the SDK's required periodic calls into the existing non-blocking structure, which is a significant engineering effort."
+			"complexityScore": 9,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "This is a major integration. Start by adding the `tuya/tuya-iot-sdk-for-embeded-cpp` library to `lib_deps` in `firmware/platformio.ini`. In `src/main.cpp`, you will need to include the Tuya headers and initialize the SDK in `setup()` using your Product ID. Implement the required callback functions for status changes (`on_tuya_status_changed`) and incoming commands (`dp_process`). Modify the WiFi connection logic to trigger Tuya's provisioning mode (`tuya_iot_wf_gw_unactive`) on failure. Finally, ensure the `tuya_iot_sdk_loop()` function is called within the main `loop()`.",
+			"reasoning": "The codebase has zero existing integration with the Tuya ecosystem. This task requires adding the Tuya IoT SDK as a new dependency in `platformio.ini` and writing a significant amount of boilerplate code in `src/main.cpp`. This includes initializing the SDK, implementing a new event-driven callback system for Tuya events (like provisioning and cloud connection), and integrating Tuya's own loop/handler function into the main `loop()`. This is a complex, high-risk integration that fundamentally adds a new layer to the firmware's architecture."
 		},
 		{
 			"taskId": 13,
 			"taskTitle": "Tuya Platform: Define Device and Data Points (DPs)",
-			"complexityScore": 3,
-			"recommendedSubtasks": 4,
-			"expansionPrompt": "Log in to the Tuya IoT Developer Platform and create a new product. In the 'Function Definition' section, define the required Data Points (DPs): 1) Four 'Switch' (Boolean) DPs for the pumps. 2) A 'Value' (Integer) DP for temperature. 3) A 'Value' (Integer) DP for luminosity (0-100). 4) A 'String' DP for RGB color control. Carefully name each DP and record the auto-generated DP ID for each one, as these IDs are essential for the firmware implementation.",
-			"reasoning": "This is a configuration task on an external platform, not a coding task. The complexity is low (3/10) but not trivial. It requires navigating the Tuya platform's interface and, more importantly, careful data modeling. Choosing the correct DP type and format for each feature is critical for the success of the subsequent firmware integration (Task 14). An error here leads to significant rework later."
+			"complexityScore": 1,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "This is a configuration task on the Tuya IoT Platform. Log in and create a new product. In the 'Function Definition' section, create custom data points (DPs). You will need to add four 'Boolean' DPs for the pumps (e.g., DPID 101-104), two 'Value' DPs for temperature and luminosity, and one 'Colour' or 'String' DP for the RGB light. Document these DP IDs in the project's README or a new config header for use in Task 14.",
+			"reasoning": "This task involves no code changes within the project repository. It is a purely administrative and configuration task performed on the external Tuya IoT Developer Platform website. The complexity is minimal from a development standpoint, as it only requires navigating a web UI and defining product features according to the project's requirements."
 		},
 		{
 			"taskId": 14,
 			"taskTitle": "Firmware: Map Device State to Tuya Data Points (DPs)",
-			"complexityScore": 7,
+			"complexityScore": 6,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "To implement two-way Tuya sync, first define all your Tuya DPIDs as constants in a config file. Create helper functions like `report_dp_bool(dpid, value)` that wrap the Tuya SDK's update call. Modify `setPumpState` in `src/main.cpp` to call this helper after a state change. In the main `loop`, after reading sensor values, call the reporting helpers for temperature and luminosity. Finally, in the `dp_process` callback (from Task 12), add a switch statement on the incoming DPID to parse the value and call the appropriate local function (`setPumpState`, `setRgbColor`, etc.).",
+			"reasoning": "This task connects the existing firmware logic to the Tuya SDK infrastructure built in Task 12. It requires modifying existing functions like `setPumpState` and the sensor reading logic in the main `loop()` to call Tuya DP reporting functions. Additionally, it involves implementing the logic inside the `dp_process` callback to parse incoming commands from the Tuya cloud and call local functions like `setPumpState` and `setRgbColor`. The complexity lies in correctly mapping all features to DPs and ensuring this two-way synchronization is robust."
+		},
+		{
+			"taskId": 17,
+			"taskTitle": "Firmware: Implement Comprehensive Safety System",
+			"complexityScore": 8,
 			"recommendedSubtasks": 6,
-			"expansionPrompt": "Create a `tuya_dps.h` file to map your recorded DP IDs to meaningful constant names. Implement the main DP command processing callback provided by the Tuya SDK. In it, use a `switch` on the DP ID to call local functions like `setPumpState` or `setRgbColor`. Then, modify all local functions that change state (`setPumpState`, `setRgbColor`, the sensor reading loop) to also call the appropriate Tuya SDK function (e.g., `mcu_dp_update`) to report the change to the cloud. Finally, implement a function to report the initial state of all DPs upon connecting to the Tuya cloud.",
-			"reasoning": "This task is highly complex (7/10) because it involves creating the two-way data binding between the device's internal logic and the Tuya cloud. It requires modifying numerous existing functions to add 'reporting' side effects. The core of the complexity lies in implementing the central command-handling callback, which acts as a router for all incoming cloud commands, and ensuring that the two-way synchronization is robust and does not create feedback loops. This meticulous wiring touches almost every feature of the firmware."
+			"expansionPrompt": "Implement a multi-layered safety system. Break this down into: 1. **Watchdog:** In `src/main.cpp`, initialize `esp_task_wdt` in `setup()` and reset it in `loop()`. 2. **Pump Timeouts:** In `loop()`, track `millis()` for each active pump and call `setPumpState(false)` if a max duration is exceeded. 3. **E-Stop:** Create a global `emergencyStopActive` flag. Implement a GPIO ISR and a new WebSocket command ('emergency_stop') to set this flag and turn off all pumps. Modify `setPumpState` to prevent turning pumps ON if the flag is true. 4. **Frontend:** Add a prominent E-Stop button to `frontend/src/app/page.tsx` that sends the WebSocket command. 5. **Logging:** Create a `logAuditEvent` function and call it for all safety-related events. 6. **Health Endpoint:** Create a new `/api/health` REST endpoint to expose system metrics.",
+			"reasoning": "This is a high-complexity task as it introduces multiple, critical safety layers that touch almost every part of the system. It requires implementing a hardware watchdog (`esp_task_wdt`), software timers for pump timeouts in the main `loop()`, a new GPIO interrupt for a physical E-stop button, extending the WebSocket protocol and `setPumpState` function for the E-stop logic, and adding a new audit logging mechanism. The combination of hardware-level, application-level, and UI changes makes this a complex undertaking."
+		},
+		{
+			"taskId": 22,
+			"taskTitle": "Implement First Automation Rule: Temperature-Based Heating Control",
+			"complexityScore": 4,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Implement a temperature-based automation rule in `firmware/src/main.cpp`. Define global variables for `targetTemperature`, `hysteresis`, and a manual override timer for the heating pump. In the main `loop()`, add a new logic block that checks if the pump is in 'AUTO' mode. If so, compare the current temperature (from the existing sensor reading) against the target and call `setPumpState` accordingly. When a manual `set_pump` command is received for this pump, set its mode to 'MANUAL' and start the override timer. Modify the `broadcastState` function to include the current mode ('AUTO'/'MANUAL') for each pump.",
+			"reasoning": "The core components for this task, sensor reading (Task 3) and pump control (`setPumpState`), are already implemented. The task involves adding new state management (target temp, hysteresis, override timer) and control logic within the main `loop()` of `src/main.cpp`. The complexity is moderate as it requires creating a small state machine to handle 'AUTO' vs 'MANUAL' modes and integrating this with existing manual controls."
+		},
+		{
+			"taskId": 18,
+			"taskTitle": "Implement Core Firmware Safety Mechanisms (Watchdog, Timeouts, Failsafe)",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on implement core firmware safety mechanisms (watchdog, timeouts, failsafe).",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 19,
+			"taskTitle": "Integrate and Expose Sensor Data via WebSocket (DS18B20 & LDR)",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on integrate and expose sensor data via websocket (ds18b20 & ldr).",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 20,
+			"taskTitle": "Build Real-Time Frontend Dashboard with Shadcn/UI",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on build real-time frontend dashboard with shadcn/ui.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 21,
+			"taskTitle": "Implement Emergency Stop and SPIFFS Audit Logging",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on implement emergency stop and spiffs audit logging.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
 		}
 	]
 }

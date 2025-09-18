@@ -205,4 +205,9 @@
  .pio/libdeps/esp32dev/ESPAsyncWebServer/src/AsyncWebSocket.h \
  .pio/libdeps/esp32dev/ESPAsyncWebServer/src/WebHandlerImpl.h \
  .pio/libdeps/esp32dev/ESPAsyncWebServer/src/WebResponseImpl.h \
- /Users/brito/.platformio/packages/framework-arduinoespressif32/cores/esp32/StreamString.h
+ /Users/brito/.platformio/packages/framework-arduinoespressif32/cores/esp32/StreamString.h \
+ .pio/libdeps/esp32dev/OneWire/OneWire.h \
+ .pio/libdeps/esp32dev/OneWire/util/OneWire_direct_regtype.h \
+ .pio/libdeps/esp32dev/DallasTemperature/DallasTemperature.h \
+ /Users/brito/.platformio/packages/framework-arduinoespressif32/libraries/SPIFFS/src/SPIFFS.h \
+ /Users/brito/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src/Preferences.h
