@@ -68,7 +68,7 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -76,7 +76,7 @@
             "description": "Modify the `PumpCard.tsx` component to include a local React state using `useState` to manage the checked status of the switch. This state will be initialized from the `status` prop but will be updated immediately on user interaction to provide an optimistic UI response.",
             "dependencies": [],
             "details": "In `components/PumpCard.tsx`, import `useState` from React. Create a state variable, e.g., `const [isChecked, setIsChecked] = useState(status);`. The `checked` prop of the `<Switch>` component should be bound to this new `isChecked` state variable instead of the `status` prop directly.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Verify that toggling the switch visually changes its state in the UI, even without any backend connection."
           },
           {
@@ -85,7 +85,7 @@
             "description": "Locate the existing WebSocket management logic (likely in a custom hook like `useWebSocket` or a React Context provider). Ensure there is a stable function available to send JSON messages to the ESP32, and that this function is exposed for use in UI components.",
             "dependencies": [],
             "details": "Analyze the existing WebSocket implementation. If it's in a context, ensure the context value provides a `sendMessage` function. If it's a hook, ensure the hook returns the `sendMessage` function. This function should accept a JavaScript object, stringify it, and send it via the WebSocket instance. The main page component (`app/page.tsx`) will consume this.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "In `app/page.tsx`, call the `sendMessage` function with a test object and verify in the browser's developer tools that the message is sent over the WebSocket connection."
           },
           {
@@ -96,7 +96,7 @@
               "2.1"
             ],
             "details": "In `components/PumpCard.tsx`, define a function `handleCheckedChange(checked: boolean)`. Inside this function, call `setIsChecked(checked)` to update the local optimistic state. Attach this function to the `<Switch>` component: `<Switch onCheckedChange={handleCheckedChange} ... />`. The function will also need to accept a callback for sending the message, which will be added in the next step.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Add a `console.log` inside `handleCheckedChange` and verify that toggling the switch logs the new boolean state to the console."
           },
           {
@@ -108,7 +108,7 @@
               "2.3"
             ],
             "details": "Update the `PumpCardProps` interface to accept a new prop, e.g., `onStateChange: (pumpId: string, state: boolean) => void;`. In `app/page.tsx`, use the `sendMessage` function from the WebSocket context/hook to define the function passed to `onStateChange`. In `PumpCard.tsx`, call this prop from within `handleCheckedChange`, passing the pump's ID and the new state. The parent will then construct the final JSON `{ action: 'set_pump', ... }` and send it.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Toggle a pump switch in the UI. Verify in the browser's developer tools that the correct WebSocket message (e.g., `{\"action\":\"set_pump\",\"pump_id\":\"pump1\",\"state\":true}`) is sent."
           },
           {
@@ -119,7 +119,7 @@
               "2.1"
             ],
             "details": "In `components/PumpCard.tsx`, import `useEffect` from React. Add a `useEffect` hook that triggers when the `status` prop changes. Inside the effect, update the local state to match the prop: `useEffect(() => { setIsChecked(status); }, [status]);`. This ensures the component reflects the true state broadcasted from the server, overriding any temporary optimistic state.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "While the UI is open, manually trigger a state change on the hardware (if possible). Verify that the switch on the dashboard updates to the correct state automatically without a page refresh."
           }
         ]
@@ -132,7 +132,7 @@
         "testStrategy": "Print the read temperature and luminosity values to the Serial Monitor. Verify the temperature against a known-good thermometer. Cover and uncover the LDR to see the luminosity values change accordingly.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -140,7 +140,7 @@
             "description": "In `src/main.cpp`, define the GPIO pins for the DS18B20 One-Wire bus and the LDR analog input. Also, declare the global variables that will hold the latest temperature and luminosity values.",
             "dependencies": [],
             "details": "Add `#define` directives for `ONE_WIRE_BUS` and `LDR_PIN` at the top of `src/main.cpp`. Declare two global variables, for example, `float currentTemperature = 0.0;` and `int currentLuminosity = 0;`, to store the sensor readings.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Compile the code to ensure there are no syntax errors after adding the definitions and variables."
           },
           {
@@ -151,7 +151,7 @@
               "3.1"
             ],
             "details": "Add `#include <OneWire.h>` and `#include <DallasTemperature.h>`. Create global instances: `OneWire oneWire(ONE_WIRE_BUS);` and `DallasTemperature sensors(&oneWire);`. In the `setup()` function, call `sensors.begin();` to initialize the sensor.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Compile the firmware. After flashing, check the serial monitor for any error messages from the `DallasTemperature` library during initialization."
           },
           {
@@ -162,7 +162,7 @@
               "3.1"
             ],
             "details": "Create a function `void updateLuminosity()`. Inside this function, use `analogRead(LDR_PIN)` to get the raw value. Since the ESP32 ADC is 12-bit, map the result from the 0-4095 range to a 0-100 integer range using the `map()` function. Store the result in the `currentLuminosity` global variable.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Temporarily call this function in the main loop with a `Serial.println` to verify that covering and uncovering the LDR produces changing values in the expected 0-100 range."
           },
           {
@@ -173,7 +173,7 @@
               "3.2"
             ],
             "details": "Create a function `void updateTemperature()`. Inside, call `sensors.requestTemperatures();` followed by `sensors.getTempCByIndex(0);`. Check the returned value against `DEVICE_DISCONNECTED_C` to handle read errors. If the read is successful, update the `currentTemperature` global variable.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Temporarily call this function in the main loop with a `Serial.println` to verify it prints a valid temperature reading."
           },
           {
@@ -185,7 +185,7 @@
               "3.4"
             ],
             "details": "In `src/main.cpp`, add global variables `unsigned long lastSensorReadTime = 0;` and `const long sensorReadInterval = 5000;`. In the `loop()` function, add a condition `if (millis() - lastSensorReadTime >= sensorReadInterval)`. Inside this block, update `lastSensorReadTime`, call `updateTemperature()` and `updateLuminosity()`, and print the `currentTemperature` and `currentLuminosity` values to the Serial Monitor for verification.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Flash the firmware and monitor the serial output. Confirm that new temperature and luminosity values are printed approximately every 5 seconds."
           }
         ]
@@ -201,7 +201,7 @@
           1,
           3
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -209,7 +209,7 @@
             "description": "Create dedicated helper functions to read the current state of all pump relays and the latest values from the temperature and luminosity sensors. This centralizes data collection before formatting.",
             "dependencies": [],
             "details": "In `src/main.cpp`, create a function `void getPumpStates(bool states[], int count)` that reads the digital state of each pump pin into the provided array. Also, create a function `void getSensorReadings(float &temperature, int &luminosity)` that performs readings from the connected sensors and updates the referenced variables. These functions will abstract the hardware interaction.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Call these functions from the `loop()` and print their output to the Serial monitor to verify they are reading correct values from the hardware."
           },
           {
@@ -220,7 +220,7 @@
               "4.1"
             ],
             "details": "In `src/main.cpp`, create a function `String buildStateJson()`. This function will first call `getPumpStates()` and `getSensorReadings()`. It will then use a `StaticJsonDocument` to build a JSON object with a 'pumps' array and a 'sensors' nested object. Finally, it will use `serializeJson()` to convert the document into a `String` for broadcasting. Ensure `ArduinoJson` is a dependency in `platformio.ini`.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Call `buildStateJson()` from `setup()` and print the resulting string to the Serial monitor. Verify the structure and values are correct."
           },
           {
@@ -229,7 +229,7 @@
             "description": "Add the necessary variables and logic to the main `loop()` function to create a non-blocking timer using the `millis()` function. This timer will control the frequency of the state broadcasts.",
             "dependencies": [],
             "details": "In `src/main.cpp`, declare a global `unsigned long lastStateBroadcastTime = 0;` and a constant `const long stateBroadcastInterval = 2500;` (for 2.5 seconds). In the `loop()` function, add an `if (millis() - lastStateBroadcastTime >= stateBroadcastInterval)` block and update `lastStateBroadcastTime = millis();` inside it.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Add a `Serial.println(\"Timer fired\");` inside the `if` block and monitor the serial output to confirm it prints at the expected interval without halting other operations."
           },
           {
@@ -240,7 +240,7 @@
               "4.2"
             ],
             "details": "In `src/main.cpp`, create a function `void broadcastFullState()`. This function will call `buildStateJson()` to get the latest state as a string. It will then use the existing `AsyncWebSocket` instance (e.g., `ws`) to send this string to all clients using `ws.textAll(stateJsonString);`. Add a log message to indicate a broadcast has occurred.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Temporarily call `broadcastFullState()` when a new WebSocket client connects to verify that a single state message is sent and received correctly."
           },
           {
@@ -252,7 +252,7 @@
               "4.4"
             ],
             "details": "In the main `loop()` function within `src/main.cpp`, place a call to the `broadcastFullState()` function inside the `if` block of the non-blocking timer created in subtask 4.3. This will trigger the state gathering, JSON serialization, and broadcast every 2.5 seconds.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Connect a WebSocket client (e.g., using a browser-based tool) and observe the console. Verify that a complete JSON state message is received every 2-3 seconds and that the values update when a pump is manually toggled or sensor values change."
           }
         ]
@@ -268,7 +268,7 @@
           2,
           4
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -276,7 +276,7 @@
             "description": "In `src/app/page.tsx`, introduce `useState` hooks to manage the state for water temperature, pH level, and light status. Initialize them with default values like `null` or placeholder strings to be displayed before the first message is received.",
             "dependencies": [],
             "details": "In the `Dashboard` component, add the following states: `const [temperature, setTemperature] = useState<number | null>(null);`, `const [phLevel, setPhLevel] = useState<number | null>(null);`, and `const [lightStatus, setLightStatus] = useState({ on: false, color: 'N/A' });`. These will hold the real-time data received from the WebSocket.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -285,7 +285,7 @@
             "description": "In the `useEffect` hook within `src/app/page.tsx`, attach an `onmessage` event handler to the `websocket` instance. This handler will be the entry point for processing all incoming state updates from the ESP32.",
             "dependencies": [],
             "details": "Inside the `useEffect` where the `WebSocket` is instantiated, add the `onmessage` property: `websocket.onmessage = (event) => { ... };`. The logic for parsing and state updates will be placed inside this function in subsequent tasks.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -296,7 +296,7 @@
               "5.2"
             ],
             "details": "Inside the `onmessage` handler, implement the parsing logic: `try { const data = JSON.parse(event.data); /* process data */ } catch (error) { console.error('Failed to parse WebSocket message:', event.data, error); }`. This ensures robust handling of incoming data.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -308,7 +308,7 @@
               "5.3"
             ],
             "details": "Add logic to update state based on the received data structure, e.g., `if (data.pumps) { setPumps(data.pumps); }`, `if (data.temperature !== undefined) { setTemperature(data.temperature); }`, `if (data.ph !== undefined) { setPhLevel(data.ph); }`, `if (data.light) { setLightStatus(data.light); }`.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -319,7 +319,7 @@
               "5.1"
             ],
             "details": "Update the sensor `CardContent` divs. For example, replace `<div className=\"text-2xl font-bold\">-- °C</div>` with `<div className=\"text-2xl font-bold\">{temperature !== null ? `${temperature.toFixed(1)} °C` : '-- °C'}</div>`. Do the same for pH and light status cards.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -334,7 +334,7 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -342,7 +342,7 @@
             "description": "Add the necessary include directive for the `Preferences.h` library and create a global instance of the `Preferences` class in `src/main.cpp` to be used for NVS operations.",
             "dependencies": [],
             "details": "In `src/main.cpp`, add `#include <Preferences.h>`. Then, declare a global object: `Preferences preferences;`. This object will provide the interface for reading from and writing to NVS.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Compile the firmware to ensure the new header is found and the object is instantiated without errors."
           },
           {
@@ -353,7 +353,7 @@
               "6.1"
             ],
             "details": "The function should call `preferences.begin(\"pump-states\", false)` to open the NVS namespace. Use `preferences.putBytes(\"states\", pumpStates, sizeof(pumpStates))` to store the array. Finally, call `preferences.end()`. Use a unique key like `\"pump-states\"` for the namespace and `\"states\"` for the data.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Temporarily call this function from `setup()` and check serial output for any errors. Use a separate test sketch to verify that data is being written to the specified NVS key."
           },
           {
@@ -364,7 +364,7 @@
               "6.2"
             ],
             "details": "In `src/main.cpp`, locate the `setPumpState(int pumpIndex, bool state)` function. After the line `digitalWrite(PUMP_PINS[pumpIndex], state ? HIGH : LOW);`, add a call to `savePumpStates();`. This ensures that every manual state change is immediately persisted.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Use the web UI to toggle a pump. Monitor the serial output to confirm that the `savePumpStates` function is called and executes without error after the pump state is changed."
           },
           {
@@ -375,7 +375,7 @@
               "6.1"
             ],
             "details": "In `setup()`, before the `for` loop that initializes pump pins, call `preferences.begin(\"pump-states\", true)` to open the namespace in read-only mode. Check if the `\"states\"` key exists using `preferences.isKey(\"states\")`. If it does, use `preferences.getBytes(\"states\", pumpStates, sizeof(pumpStates))` to load the data into the `pumpStates` array. Call `preferences.end()` afterwards.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Add serial print statements to show whether states were loaded from NVS or if the default state is being used. After performing subtask 3, restart the device and verify the logs show that states were successfully loaded."
           },
           {
@@ -386,7 +386,7 @@
               "6.4"
             ],
             "details": "Locate the `for` loop in `setup()` that iterates through `PUMP_PINS`. Change the line `digitalWrite(PUMP_PINS[i], LOW);` to `digitalWrite(PUMP_PINS[i], pumpStates[i] ? HIGH : LOW);`. This will ensure the physical relays match the restored state immediately upon boot.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Set several pumps to ON via the UI. Power cycle the ESP32. Observe the physical relays (or connected LEDs) to confirm they turn on at startup, corresponding to the last saved state."
           }
         ]
@@ -674,7 +674,7 @@
           5,
           10
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -682,7 +682,7 @@
             "description": "Add the `react-color` library and its corresponding type definitions to the project's dependencies. Create a new component file to house the color picker logic.",
             "dependencies": [],
             "details": "Run `npm install react-color` and `npm install -D @types/react-color`. Create a new file at `src/components/controls/ColorPickerControl.tsx`. This file will contain the React component for the color picker functionality.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Verify that the dependencies are added to `package.json` and the new component file is created in the specified directory without causing any build errors."
           },
           {
@@ -693,7 +693,7 @@
               "11.1"
             ],
             "details": "In `src/components/controls/ColorPickerControl.tsx`, use Shadcn/UI components: `<Popover>`, `<PopoverTrigger>`, and `<PopoverContent>`. The trigger will be a `<Button>`. Inside the `<PopoverContent>`, render a color picker component from `react-color`, such as `<SketchPicker />`. Initially, this will be a static layout without state logic.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Load the dashboard page where the component is temporarily placed. Verify that a button is visible and clicking it opens a popover containing the color picker."
           },
           {
@@ -704,7 +704,7 @@
               "11.2"
             ],
             "details": "In `ColorPickerControl.tsx`, use the existing WebSocket context/hook (similar to the pump switches). Add an `onChangeComplete` handler to the `<SketchPicker />` component. Inside the handler, format the selected color into the required JSON message (e.g., `{ \"command\": \"set_rgb\", \"value\": { \"r\": r, \"g\": g, \"b\": b } }`) and send it using the WebSocket instance. Consider debouncing the handler to prevent flooding the connection.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Open the browser's developer tools to the Network tab. Use the color picker and verify that a WebSocket message with the correct `set_rgb` command and RGB payload is sent upon finalizing a color selection."
           },
           {
@@ -715,7 +715,7 @@
               "11.2"
             ],
             "details": "In `ColorPickerControl.tsx`, subscribe to the WebSocket state context that is updated by the `onmessage` handler (as implemented for Task 5). Read the current RGB color from the state (e.g., from a `state.lighting.rgb` object). Use this value to set the `color` prop of the `<SketchPicker />` component and to set the background color of the `<PopoverTrigger>` button, providing visual feedback of the current state.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "With the application running, manually send a WebSocket message from the browser console to simulate an ESP32 state update with a new color. Verify that the trigger button's background color and the color picker's selected color update automatically."
           },
           {
@@ -727,7 +727,7 @@
               "11.4"
             ],
             "details": "Locate the main dashboard component file (e.g., `src/app/page.tsx` or a `Dashboard.tsx` component). Import the `ColorPickerControl` component and render it within the dashboard layout, likely in a card or section dedicated to lighting controls. Ensure it is visually aligned with existing controls like the pump switches.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Load the main dashboard page. Verify the color picker control is present and fully functional. Test the end-to-end flow: select a color, see the physical LED change, and see the UI control reflect the state broadcasted back from the ESP32."
           }
         ]
@@ -935,11 +935,88 @@
             "testStrategy": "Use the color picker in the Tuya Smart Life app to change the RGB light's color. Verify that the physical RGB LED connected to the ESP32 changes to the selected color."
           }
         ]
+      },
+      {
+        "id": 15,
+        "title": "Firmware: Implement STA/AP WiFi Mode",
+        "description": "Implement logic for the ESP32 to first attempt connecting to a known WiFi network (STA mode). If the connection fails after a set number of attempts, it should fall back to creating its own Access Point (AP mode) for emergency configuration. This improves usability by making the device accessible on the local network by default.",
+        "details": "",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Firmware: Create Web-based WiFi Configurator for AP Mode",
+        "description": "Develop a web page served in AP mode that allows users to scan for WiFi networks, enter credentials, and save them to the ESP32's NVS. The device will then restart and attempt to connect to the new network.",
+        "details": "When the ESP32 fails to connect to a known network and enters AP mode (as implemented in Task 15), it must serve a dedicated configuration portal. \n1. **Captive Portal:** In the AP mode setup block in `main.cpp`, implement a DNS server that redirects all domain name requests to the ESP32's IP (192.168.4.1). This ensures that when a user connects to the 'Quinta-dos-Britos-Config' WiFi, their browser automatically opens the configuration page.\n2. **Web Server Routes (AP Mode):**\n   - `server.on(\"/\", HTTP_GET, ...)`: Serve a new HTML file, e.g., `/ap_config.html`, from the SPIFFS/LittleFS filesystem.\n   - `server.on(\"/api/scanwifi\", HTTP_GET, ...)`: Create an endpoint that triggers `WiFi.scanNetworks()`, formats the results (SSID and RSSI) into a JSON array using `ArduinoJson`, and sends it to the client.\n   - `server.on(\"/api/savewifi\", HTTP_POST, ...)`: Create an endpoint to handle the form submission. Use the `AsyncWebBodyParser` to parse the `ssid` and `password` from the request. Save these credentials to NVS using the `Preferences` library with keys like `\"wifi_ssid\"` and `\"wifi_pass\"`. After saving, send a success response and call `ESP.restart()`.\n3. **Frontend (`ap_config.html`):** Create a simple, self-contained HTML page. It should include JavaScript to:\n   - On page load, or via a 'Scan' button, make a `fetch` request to `/api/scanwifi`.\n   - Populate a `<select>` dropdown with the returned network SSIDs.\n   - On form submission, send the selected SSID and password input to `/api/savewifi` using a POST request.\n   - Display a message to the user indicating that the device is saving and restarting.",
+        "testStrategy": "1. Ensure no WiFi credentials are stored in NVS to force the device into AP mode on boot. You can write a temporary sketch with `Preferences.clear()` to do this.\n2. Power on the ESP32. Connect a phone or laptop to the 'Quinta-dos-Britos-Config' WiFi network.\n3. The captive portal should automatically open the configuration page in the browser. If not, manually navigate to `192.168.4.1`.\n4. Verify the page loads correctly. Click the 'Scan' button and check that the dropdown populates with local WiFi networks.\n5. Select your home network, enter the correct password, and click 'Save'.\n6. The browser should show a success/restarting message. Monitor the Serial output to confirm the credentials are received, saved, and that `ESP.restart()` is called.\n7. After restart, verify via Serial Monitor that the ESP32 now successfully connects to the provided home WiFi in STA mode and gets an IP address.",
+        "status": "done",
+        "dependencies": [
+          15
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement Captive Portal DNS Server in AP Mode",
+            "description": "In `main.cpp`, within the AP mode setup block, instantiate and configure a `DNSServer`. The server should be configured to respond to all DNS queries with the ESP32's AP IP address, forcing connected devices to open the configuration portal.",
+            "dependencies": [],
+            "details": "Include the `DNSServer.h` library. In the `else` block for AP mode in `main.cpp`, after `WiFi.softAP()` is called, create a `DNSServer` object. Start the DNS server on port 53, mapping all domains ('*') to the AP's IP address. In the main `loop()`, add a conditional check to only call `dnsServer.processNextRequest()` when the device is in AP mode.",
+            "status": "done",
+            "testStrategy": "Connect a device to the 'Quinta-dos-Britos-Config' WiFi. Open a browser and attempt to navigate to any website (e.g., google.com). The browser should be redirected to the ESP32's web server page (even if it's just a 'Not Found' page for now)."
+          },
+          {
+            "id": 2,
+            "title": "Setup AsyncWebServer and Serve Configuration Page",
+            "description": "Add the `ESPAsyncWebServer` library, create a basic `ap_config.html` file, and configure the web server to serve this file from the LittleFS filesystem when a client connects in AP mode.",
+            "dependencies": [],
+            "details": "Add `esphome/ESPAsyncWebServer` and its dependency `esphome/AsyncTCP` to `platformio.ini`. Create a `data` directory in the project root and place a new file `ap_config.html` inside it. This HTML should contain a basic form with a `<select>` for SSIDs, a password `<input>`, and a submit button. In `main.cpp`, include `ESPAsyncWebServer.h` and `LittleFS.h`. Initialize LittleFS in `setup()`. In the AP mode block, instantiate `AsyncWebServer` on port 80. Create a route `server.on(\"/\", HTTP_GET, ...)` to serve `data/ap_config.html`. Also, add a `server.onNotFound(...)` handler that serves the same page to assist the captive portal.",
+            "status": "done",
+            "testStrategy": "After flashing with the filesystem image, connect to the AP. The captive portal (or manually navigating to 192.168.4.1) should display the contents of `ap_config.html`."
+          },
+          {
+            "id": 3,
+            "title": "Create `/api/scanwifi` Endpoint to List Networks",
+            "description": "Implement a new `AsyncWebServer` GET route, `/api/scanwifi`, that performs a WiFi scan. The results (SSID and RSSI) should be formatted into a JSON array and sent as the response.",
+            "dependencies": [
+              "16.2"
+            ],
+            "details": "In `main.cpp`, add a new server route `server.on(\"/api/scanwifi\", HTTP_GET, ...)`. Inside the handler lambda, call `WiFi.scanNetworks()` to get the number of networks. Iterate through the results, and for each network, use the `ArduinoJson` library to construct a JSON array of objects. Each object should contain the `ssid` and `rssi`. Serialize the JSON document and send it as the response with a content type of `application/json`.",
+            "status": "done",
+            "testStrategy": "While connected to the AP, navigate your browser to `http://192.168.4.1/api/scanwifi`. The browser should display a JSON array of nearby WiFi networks."
+          },
+          {
+            "id": 4,
+            "title": "Create `/api/savewifi` Endpoint to Store Credentials",
+            "description": "Implement a POST route, `/api/savewifi`, to receive and process WiFi credentials. The endpoint will parse the submitted SSID and password, save them to NVS using the `Preferences` library, and trigger a device restart.",
+            "dependencies": [
+              "16.2"
+            ],
+            "details": "In `main.cpp`, add a new server route `server.on(\"/api/savewifi\", HTTP_POST, ...)`. Inside the handler, check for the presence of `ssid` and `password` parameters in the request. Use the existing `Preferences` instance (already used for reading credentials) to open the `wifi-creds` namespace and save the received values to the keys `\"wifi_ssid\"` and `\"wifi_pass\"`. After calling `preferences.end()`, send a `200 OK` response with a simple text message and then call `ESP.restart()` to apply the new settings.",
+            "status": "done",
+            "testStrategy": "Use a tool like `curl` or Postman to send a POST request to `http://192.168.4.1/api/savewifi` with `ssid` and `password` data. Monitor the serial output to confirm that the device receives the data, saves it, and restarts."
+          },
+          {
+            "id": 5,
+            "title": "Implement Frontend JavaScript for Dynamic Interaction",
+            "description": "Enhance `ap_config.html` with JavaScript to fetch available WiFi networks from the API, populate the dropdown menu, and handle the form submission asynchronously using the `fetch` API.",
+            "dependencies": [
+              "16.3",
+              "16.4"
+            ],
+            "details": "In `data/ap_config.html`, add a `<script>` section. Write a function that executes on page load to `fetch('/api/scanwifi')`. Parse the JSON response and dynamically create `<option>` elements for the SSID `<select>` dropdown. Add an event listener to the form's `submit` event. In the listener, call `event.preventDefault()`, retrieve the selected SSID and the password from the input field, and use `fetch('/api/savewifi', ...)` with a `POST` method and a URL-encoded body to send the credentials. Upon a successful response, update the page to show a message like 'Success! Device is restarting...'",
+            "status": "done",
+            "testStrategy": "Open the configuration page in a browser. Verify the WiFi network dropdown is populated. Select a network, enter the password, and click submit. The page should display a success message, and the ESP32's onboard LED should indicate a restart. The device should then connect to the specified network."
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-09-18T01:51:38.652Z",
-      "updated": "2025-09-18T02:05:07.448Z",
+      "updated": "2025-09-18T03:31:34.192Z",
       "description": "Tasks for master context"
     }
   }
