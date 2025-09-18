@@ -1,0 +1,182 @@
+<context>
+# Overview  
+O Sistema de Automação de Piscina ESP32-Tuya é uma solução completa de IoT para controle inteligente de piscinas residenciais. O sistema resolve o problema de gerenciamento manual e ineficiente de equipamentos de piscina, oferecendo automação baseada em sensores, controle remoto via interface web moderna e integração com assistentes de voz através de plataformas como Tuya/Sonoff.
+
+O produto é destinado a proprietários de piscinas que desejam automatizar e otimizar o funcionamento de seus equipamentos, reduzindo custos operacionais e melhorando a experiência de uso através de tecnologia moderna e intuitiva.
+
+# Core Features  
+## Controle de Bombas Inteligente
+- **Bomba de Circulação**: Controle automático baseado em horários programáveis e demanda
+- **Bomba de Filtragem**: Ativação inteligente baseada em qualidade da água e uso da piscina
+- **Bomba de Aquecimento**: Acionamento automático baseado em temperatura e luminosidade solar
+- **Bomba de Borda**: Controle para efeitos visuais e circulação adicional
+
+## Sistema de Iluminação RGB
+- **Controle de Cores**: Interface para seleção de cores e efeitos luminosos
+- **Programação Automática**: Iluminação baseada em horários e eventos
+- **Efeitos Especiais**: Sequências de cores e transições automáticas
+
+## Monitoramento por Sensores
+- **Sensor de Temperatura**: Monitoramento contínuo da temperatura da água
+- **Sensor de Luminosidade**: Detecção de incidência solar para otimização de aquecimento
+- **Alertas Inteligentes**: Notificações baseadas em parâmetros fora do normal
+
+## Conectividade Dual
+- **Access Point Local**: Interface web direta via WiFi do ESP32
+- **Integração Tuya/Sonoff**: Controle via assistentes de voz e aplicativos móveis
+- **Interface Web Moderna**: Dashboard responsivo desenvolvido com Shadcn/UI
+
+# User Experience  
+## Personas
+- **Proprietário Tech-Savvy**: Usuário que valoriza automação e controle granular
+- **Usuário Casual**: Prefere simplicidade e automação com mínima intervenção
+- **Família com Crianças**: Prioriza segurança e facilidade de uso
+
+## Fluxos Principais
+1. **Configuração Inicial**: Setup do WiFi, calibração de sensores, definição de preferências
+2. **Uso Diário**: Monitoramento via dashboard, ajustes manuais pontuais
+3. **Controle por Voz**: Comandos via Alexa/Google Assistant através da integração Tuya
+4. **Manutenção**: Visualização de históricos, alertas e agendamento de tarefas
+
+## UI/UX Considerations
+- Interface responsiva e intuitiva com Shadcn/UI
+- Dashboard em tempo real com gráficos e indicadores visuais
+- Controles touch-friendly para dispositivos móveis
+- Modo escuro/claro automático baseado na iluminação ambiente
+</context>
+
+<PRD>
+# Technical Architecture  
+## System Components
+- **ESP32 DevKit**: Microcontrolador principal com WiFi/Bluetooth integrado
+- **Módulo de Relés**: Controle de 4 bombas com relés de alta corrente
+- **Driver RGB**: Controlador PWM para LEDs RGB da iluminação
+- **Sensores**: DS18B20 (temperatura), LDR (luminosidade)
+- **Quadro Elétrico**: Proteções e distribuição para bombas
+
+## Software Stack
+- **Firmware ESP32**: Arduino/ESP-IDF com bibliotecas Tuya SDK
+- **Frontend**: Next.js 14 + TypeScript + Shadcn/UI + Tailwind CSS
+- **Comunicação**: WebSocket para tempo real, REST API para configurações
+- **Integração IoT**: Tuya SDK para conectividade cloud e assistentes de voz
+
+## Data Models
+- **Device State**: Status de bombas, iluminação e sensores
+- **Schedules**: Programações automáticas e horários
+- **Sensor Data**: Histórico de temperatura e luminosidade
+- **User Preferences**: Configurações pessoais e limites de operação
+
+## APIs and Integrations
+- **ESP32 REST API**: Endpoints para controle local
+- **Tuya Cloud API**: Integração com plataforma IoT
+- **WebSocket API**: Comunicação em tempo real para dashboard
+- **Voice Commands**: Integração com Alexa Skills/Google Actions
+
+## Infrastructure Requirements
+- **Local Network**: WiFi 2.4GHz para ESP32
+- **Internet**: Conexão estável para funcionalidades cloud
+- **Power Supply**: Fonte 12V/5A para ESP32 e periféricos
+- **Installation**: Quadro elétrico com proteções adequadas
+
+# Development Roadmap  
+## Phase 1: MVP Core (Hardware + Basic Control)
+- Configuração do ambiente de desenvolvimento com esptool
+- Implementação do firmware básico ESP32 com controle de relés
+- Interface web simples para controle manual das 4 bombas
+- Leitura básica de sensores de temperatura e luminosidade
+- Access Point local para conexão direta
+- Dashboard inicial com Shadcn/UI mostrando status em tempo real
+
+## Phase 2: Automation & Smart Features
+- Lógica de automação baseada em sensores
+- Sistema de programação de horários
+- Controle RGB com seletor de cores e efeitos
+- Histórico de dados dos sensores
+- Alertas e notificações no dashboard
+- Melhorias na interface com gráficos e visualizações
+
+## Phase 3: Cloud Integration & Voice Control
+- Integração com Tuya SDK no firmware
+- Configuração de device na plataforma Tuya
+- Desenvolvimento de Skills para Alexa/Google Assistant
+- Sincronização de dados com cloud
+- Controle remoto via aplicativo Tuya/Smart Life
+- Backup e restore de configurações
+
+## Phase 4: Advanced Features & Optimization
+- Algoritmos de otimização energética
+- Predição baseada em padrões de uso
+- Integração com outros sistemas smart home
+- API pública para integrações customizadas
+- Analytics avançados e relatórios
+- Updates OTA (Over The Air)
+
+# Logical Dependency Chain
+## Foundation Layer (Phase 1)
+1. **Hardware Setup**: Montagem do quadro com ESP32, relés e sensores
+2. **Basic Firmware**: Controle de GPIO, WiFi AP, servidor web básico
+3. **Frontend Base**: Projeto Next.js com Shadcn/UI e comunicação básica
+4. **Local Communication**: WebSocket/REST entre frontend e ESP32
+
+## Automation Layer (Phase 2)
+5. **Sensor Integration**: Leitura confiável e calibração de sensores
+6. **Control Logic**: Algoritmos de automação baseados em sensores
+7. **Scheduling System**: Sistema de programação com persistência
+8. **Enhanced UI**: Dashboard avançado com controles intuitivos
+
+## Cloud Layer (Phase 3)
+9. **Tuya Integration**: SDK implementation e device registration
+10. **Voice Commands**: Skills development e testing
+11. **Remote Access**: Configuração de conectividade externa
+12. **Data Sync**: Sincronização bidirecional de estados
+
+## Optimization Layer (Phase 4)
+13. **Advanced Algorithms**: ML/AI para otimização
+14. **Ecosystem Integration**: APIs e webhooks
+15. **Analytics**: Sistema de relatórios e insights
+16. **Maintenance**: OTA updates e diagnósticos
+
+# Risks and Mitigations  
+## Technical Challenges
+- **Risk**: Conectividade WiFi instável em ambiente de piscina
+- **Mitigation**: Implementar reconexão automática e modo offline robusto
+
+- **Risk**: Interferência eletromagnética das bombas no ESP32
+- **Mitigation**: Isolamento adequado, filtros e shielding do circuito
+
+- **Risk**: Complexidade da integração Tuya
+- **Mitigation**: Prototipagem early, documentação oficial e community support
+
+## MVP Scope Definition
+- **Risk**: Over-engineering do MVP retardando time-to-market
+- **Mitigation**: Foco rigoroso em funcionalidades core: controle manual + sensores básicos
+
+- **Risk**: Subestimar complexidade do firmware ESP32
+- **Mitigation**: Desenvolvimento incremental com testes em hardware real
+
+## Resource Constraints
+- **Risk**: Dependência de hardware específico para testes
+- **Mitigation**: Simuladores para desenvolvimento paralelo de software
+
+- **Risk**: Debuging complexo em ambiente embarcado
+- **Mitigation**: Logging robusto, serial monitor e ferramentas de debug remoto
+
+# Appendix  
+## Research Findings
+- Tuya SDK oferece melhor documentação que Sonoff eWeLink
+- ESP32 DevKit v1 tem melhor compatibilidade com bibliotecas Arduino
+- Shadcn/UI + Next.js 14 App Router para performance otimizada
+
+## Technical Specifications
+- **ESP32**: 240MHz dual-core, 520KB RAM, WiFi 802.11 b/g/n
+- **Relés**: 4x Módulo relé 12V/10A com optoacoplador
+- **Sensores**: DS18B20 (±0.5°C), LDR + resistor 10kΩ
+- **LEDs**: Fita LED RGB 12V com driver PWM
+- **Power**: Fonte 12V/5A + regulador 3.3V para ESP32
+
+## Development Tools
+- **Firmware**: Arduino IDE + ESP32 Board Package + esptool
+- **Frontend**: Next.js 14, TypeScript, Shadcn/UI, Tailwind CSS
+- **Testing**: Serial Monitor, Postman, Chrome DevTools
+- **Version Control**: Git com conventional commits
+- **Deployment**: Local build + esptool flash, Vercel para frontend</PRD>

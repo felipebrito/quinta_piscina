@@ -1,0 +1,946 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Firmware: Implement Relay Control Logic and WebSocket Handler",
+        "description": "Implement the core logic in the ESP32 firmware to control the 4 relays (pumps) based on commands received via WebSocket. This involves parsing incoming JSON messages and toggling the corresponding GPIO pins.",
+        "details": "Define a JSON message format, e.g., `{\"action\": \"set_pump\", \"pump_id\": <0-3>, \"state\": <true/false>}`. In the WebSocket event handler, parse this JSON. Create a function `setPumpState(pumpId, state)` that sets the `digitalWrite` for the correct GPIO pin. Ensure GPIO pins are configured as outputs in `setup()`.",
+        "testStrategy": "Use a WebSocket client (like Postman or a simple web page) to send control messages to the ESP32. Verify with an LED connected to each relay's GPIO pin or by listening for the click of the physical relays.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Define Relay GPIO Pins and Initialize in setup()",
+            "description": "Define an array in `src/main.cpp` to map the four pump IDs (0-3) to their corresponding ESP32 GPIO pins. Then, in the `setup()` function, iterate through this array to configure each pin as an output using `pinMode()`.",
+            "dependencies": [],
+            "details": "Near the top of `src/main.cpp`, add a global constant array, for example: `const int PUMP_PINS[4] = {23, 22, 21, 19};`. In the `setup()` function, add a `for` loop to call `pinMode(PUMP_PINS[i], OUTPUT);` and `digitalWrite(PUMP_PINS[i], LOW);` for each pin to ensure they start in the 'off' state.\n<info added on 2025-09-18T02:05:03.787Z>\n[\n  4\n]\n</info added on 2025-09-18T02:05:03.787Z>",
+            "status": "done",
+            "testStrategy": "After flashing, check the serial monitor for any boot errors. If possible, use a multimeter to confirm the configured GPIO pins are initialized to a LOW voltage state."
+          },
+          {
+            "id": 2,
+            "title": "Create `setPumpState()` Function for Relay Control",
+            "description": "Implement a dedicated function, `void setPumpState(int pumpId, bool state)`, to abstract the logic for controlling a single relay. This function will perform input validation and execute the `digitalWrite` command.",
+            "dependencies": [],
+            "details": "In `src/main.cpp`, create the function `setPumpState`. It should first check if `pumpId` is within the valid range (0-3). If valid, it will use the `PUMP_PINS` array to get the correct GPIO pin and call `digitalWrite(PUMP_PINS[pumpId], state ? HIGH : LOW);`. Add `Serial.printf` statements to log the action, e.g., `Serial.printf(\"Setting pump %d to state %d\\n\", pumpId, state);`.",
+            "status": "done",
+            "testStrategy": "Temporarily call this function from `setup()` (e.g., `setPumpState(0, true);`) to verify that the correct relay/LED turns on upon boot."
+          },
+          {
+            "id": 3,
+            "title": "Parse Incoming JSON in WebSocket Event Handler",
+            "description": "Within the existing `onWebSocketEvent` function in `src/main.cpp`, implement the logic to handle incoming data messages (`WS_EVT_DATA`). Use the `ArduinoJson` library to parse the received byte array into a JSON document.",
+            "dependencies": [],
+            "details": "Inside the `if (type == WS_EVT_DATA)` block, declare a `StaticJsonDocument` with an appropriate size (e.g., 256 bytes). Use `deserializeJson(doc, data, len)` to parse the payload. Add error handling to check the return value of `deserializeJson` and log any parsing failures to the Serial monitor.",
+            "status": "done",
+            "testStrategy": "Use a WebSocket client to send various valid and invalid JSON strings to the ESP32's `/ws` endpoint. Monitor the serial output to confirm that valid JSON is parsed without error and invalid JSON is correctly identified and logged."
+          },
+          {
+            "id": 4,
+            "title": "Implement 'set_pump' Action Dispatcher",
+            "description": "After successfully parsing an incoming JSON message, inspect the document to see if it represents a pump control command. If the `action` is `\"set_pump\"`, extract the `pump_id` and `state` and use them to call the `setPumpState` function.",
+            "dependencies": [],
+            "details": "Following the successful `deserializeJson` call, add a conditional check: `if (doc[\"action\"] == \"set_pump\")`. Inside this block, extract the values: `int pumpId = doc[\"pump_id\"];` and `bool pumpState = doc[\"state\"];`. Before calling `setPumpState(pumpId, pumpState);`, add checks to ensure the `pump_id` and `state` keys are not null.",
+            "status": "done",
+            "testStrategy": "Using a WebSocket client, send a message like `{\"action\": \"set_pump\", \"pump_id\": 1, \"state\": true}`. Verify via serial logs that the message is parsed and `setPumpState` is called with the correct arguments. Observe the physical relay or connected LED for state change."
+          },
+          {
+            "id": 5,
+            "title": "Broadcast Pump State Changes to All WebSocket Clients",
+            "description": "Enhance the control logic to provide feedback. After a pump's state is changed, create a new JSON message confirming the new state and broadcast it to all connected WebSocket clients using `ws.textAll()`.",
+            "dependencies": [],
+            "details": "After the call to `setPumpState` in the WebSocket handler, create a new `StaticJsonDocument` for the response. Populate it with the pump's new status, e.g., `responseDoc[\"action\"] = \"pump_status\"; responseDoc[\"pump_id\"] = pumpId; responseDoc[\"state\"] = pumpState;`. Serialize this document to a string and broadcast it using `ws.textAll(outputString);`.",
+            "status": "done",
+            "testStrategy": "Connect two WebSocket clients. Send a `set_pump` command from one client. Verify that both clients receive the `pump_status` confirmation message and that the physical relay state matches the broadcasted state."
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Frontend: Implement Pump Control Switches",
+        "description": "Connect the Shadcn/UI Switch components on the Next.js dashboard to send control messages to the ESP32 via the existing WebSocket connection.",
+        "details": "In the React component for each pump, add an `onCheckedChange` handler to the `<Switch>` element. When toggled, construct the JSON message defined in Task 1 and send it using the WebSocket instance. The UI should reflect the intended state immediately, but update to the actual state upon receiving a broadcast from the ESP32.",
+        "testStrategy": "Open the web UI and toggle the switches for each pump. Verify in the browser's developer tools that the correct WebSocket messages are being sent. Confirm that the physical relays (or test LEDs) on the hardware respond as expected.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add Local State to PumpCard for Optimistic Updates",
+            "description": "Modify the `PumpCard.tsx` component to include a local React state using `useState` to manage the checked status of the switch. This state will be initialized from the `status` prop but will be updated immediately on user interaction to provide an optimistic UI response.",
+            "dependencies": [],
+            "details": "In `components/PumpCard.tsx`, import `useState` from React. Create a state variable, e.g., `const [isChecked, setIsChecked] = useState(status);`. The `checked` prop of the `<Switch>` component should be bound to this new `isChecked` state variable instead of the `status` prop directly.",
+            "status": "pending",
+            "testStrategy": "Verify that toggling the switch visually changes its state in the UI, even without any backend connection."
+          },
+          {
+            "id": 2,
+            "title": "Expose WebSocket `sendMessage` Function via Context or Hook",
+            "description": "Locate the existing WebSocket management logic (likely in a custom hook like `useWebSocket` or a React Context provider). Ensure there is a stable function available to send JSON messages to the ESP32, and that this function is exposed for use in UI components.",
+            "dependencies": [],
+            "details": "Analyze the existing WebSocket implementation. If it's in a context, ensure the context value provides a `sendMessage` function. If it's a hook, ensure the hook returns the `sendMessage` function. This function should accept a JavaScript object, stringify it, and send it via the WebSocket instance. The main page component (`app/page.tsx`) will consume this.",
+            "status": "pending",
+            "testStrategy": "In `app/page.tsx`, call the `sendMessage` function with a test object and verify in the browser's developer tools that the message is sent over the WebSocket connection."
+          },
+          {
+            "id": 3,
+            "title": "Implement `onCheckedChange` Handler in `PumpCard`",
+            "description": "Create the handler function for the `onCheckedChange` event on the `<Switch>` component within `PumpCard.tsx`. This function will be responsible for updating the local state and preparing the control message.",
+            "dependencies": [
+              "2.1"
+            ],
+            "details": "In `components/PumpCard.tsx`, define a function `handleCheckedChange(checked: boolean)`. Inside this function, call `setIsChecked(checked)` to update the local optimistic state. Attach this function to the `<Switch>` component: `<Switch onCheckedChange={handleCheckedChange} ... />`. The function will also need to accept a callback for sending the message, which will be added in the next step.",
+            "status": "pending",
+            "testStrategy": "Add a `console.log` inside `handleCheckedChange` and verify that toggling the switch logs the new boolean state to the console."
+          },
+          {
+            "id": 4,
+            "title": "Connect `PumpCard` Handler to WebSocket `sendMessage`",
+            "description": "Pass a function from the parent component (`app/page.tsx`) down to each `PumpCard` component as a prop. This prop will be responsible for sending the state change message. Update the `onCheckedChange` handler to call this function with the correctly formatted JSON message.",
+            "dependencies": [
+              "2.2",
+              "2.3"
+            ],
+            "details": "Update the `PumpCardProps` interface to accept a new prop, e.g., `onStateChange: (pumpId: string, state: boolean) => void;`. In `app/page.tsx`, use the `sendMessage` function from the WebSocket context/hook to define the function passed to `onStateChange`. In `PumpCard.tsx`, call this prop from within `handleCheckedChange`, passing the pump's ID and the new state. The parent will then construct the final JSON `{ action: 'set_pump', ... }` and send it.",
+            "status": "pending",
+            "testStrategy": "Toggle a pump switch in the UI. Verify in the browser's developer tools that the correct WebSocket message (e.g., `{\"action\":\"set_pump\",\"pump_id\":\"pump1\",\"state\":true}`) is sent."
+          },
+          {
+            "id": 5,
+            "title": "Synchronize `PumpCard` State with External WebSocket Data",
+            "description": "Implement a `useEffect` hook in `PumpCard.tsx` to synchronize the component's local `isChecked` state with the `status` prop. This ensures that when the authoritative state is received from the ESP32 (as part of Task 5) and passed down as a prop, the UI corrects itself, completing the optimistic update loop.",
+            "dependencies": [
+              "2.1"
+            ],
+            "details": "In `components/PumpCard.tsx`, import `useEffect` from React. Add a `useEffect` hook that triggers when the `status` prop changes. Inside the effect, update the local state to match the prop: `useEffect(() => { setIsChecked(status); }, [status]);`. This ensures the component reflects the true state broadcasted from the server, overriding any temporary optimistic state.",
+            "status": "pending",
+            "testStrategy": "While the UI is open, manually trigger a state change on the hardware (if possible). Verify that the switch on the dashboard updates to the correct state automatically without a page refresh."
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Firmware: Implement Sensor Reading for DS18B20 and LDR",
+        "description": "Write the firmware code to periodically read data from the DS18B20 temperature sensor and the LDR (Light Dependent Resistor) for luminosity.",
+        "details": "Use the `DallasTemperature` and `OneWire` libraries for the DS18B20. Implement a non-blocking read function that is called periodically (e.g., every 5 seconds). For the LDR, use `analogRead` on the connected ADC pin. Map the raw analog value to a percentage (0-100%). Store the latest values in global state variables.",
+        "testStrategy": "Print the read temperature and luminosity values to the Serial Monitor. Verify the temperature against a known-good thermometer. Cover and uncover the LDR to see the luminosity values change accordingly.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Define Sensor Pins and Global State Variables",
+            "description": "In `src/main.cpp`, define the GPIO pins for the DS18B20 One-Wire bus and the LDR analog input. Also, declare the global variables that will hold the latest temperature and luminosity values.",
+            "dependencies": [],
+            "details": "Add `#define` directives for `ONE_WIRE_BUS` and `LDR_PIN` at the top of `src/main.cpp`. Declare two global variables, for example, `float currentTemperature = 0.0;` and `int currentLuminosity = 0;`, to store the sensor readings.",
+            "status": "pending",
+            "testStrategy": "Compile the code to ensure there are no syntax errors after adding the definitions and variables."
+          },
+          {
+            "id": 2,
+            "title": "Initialize DS18B20 Sensor in setup()",
+            "description": "In `src/main.cpp`, include the necessary libraries for the DS18B20 sensor, instantiate the library objects, and initialize the sensor in the `setup()` function.",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Add `#include <OneWire.h>` and `#include <DallasTemperature.h>`. Create global instances: `OneWire oneWire(ONE_WIRE_BUS);` and `DallasTemperature sensors(&oneWire);`. In the `setup()` function, call `sensors.begin();` to initialize the sensor.",
+            "status": "pending",
+            "testStrategy": "Compile the firmware. After flashing, check the serial monitor for any error messages from the `DallasTemperature` library during initialization."
+          },
+          {
+            "id": 3,
+            "title": "Implement LDR Reading and Mapping Function",
+            "description": "Create a dedicated function in `src/main.cpp` to read the analog value from the LDR pin and map it to a 0-100% luminosity scale.",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Create a function `void updateLuminosity()`. Inside this function, use `analogRead(LDR_PIN)` to get the raw value. Since the ESP32 ADC is 12-bit, map the result from the 0-4095 range to a 0-100 integer range using the `map()` function. Store the result in the `currentLuminosity` global variable.",
+            "status": "pending",
+            "testStrategy": "Temporarily call this function in the main loop with a `Serial.println` to verify that covering and uncovering the LDR produces changing values in the expected 0-100 range."
+          },
+          {
+            "id": 4,
+            "title": "Implement DS18B20 Temperature Reading Function",
+            "description": "Create a dedicated function in `src/main.cpp` to request the temperature from the DS18B20 sensor and update the global state.",
+            "dependencies": [
+              "3.2"
+            ],
+            "details": "Create a function `void updateTemperature()`. Inside, call `sensors.requestTemperatures();` followed by `sensors.getTempCByIndex(0);`. Check the returned value against `DEVICE_DISCONNECTED_C` to handle read errors. If the read is successful, update the `currentTemperature` global variable.",
+            "status": "pending",
+            "testStrategy": "Temporarily call this function in the main loop with a `Serial.println` to verify it prints a valid temperature reading."
+          },
+          {
+            "id": 5,
+            "title": "Create Periodic Timer to Trigger Sensor Reads",
+            "description": "In the main `loop()` function, implement a non-blocking timer using `millis()` to call the sensor reading functions periodically.",
+            "dependencies": [
+              "3.3",
+              "3.4"
+            ],
+            "details": "In `src/main.cpp`, add global variables `unsigned long lastSensorReadTime = 0;` and `const long sensorReadInterval = 5000;`. In the `loop()` function, add a condition `if (millis() - lastSensorReadTime >= sensorReadInterval)`. Inside this block, update `lastSensorReadTime`, call `updateTemperature()` and `updateLuminosity()`, and print the `currentTemperature` and `currentLuminosity` values to the Serial Monitor for verification.",
+            "status": "pending",
+            "testStrategy": "Flash the firmware and monitor the serial output. Confirm that new temperature and luminosity values are printed approximately every 5 seconds."
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Firmware: Broadcast Full Device State via WebSocket",
+        "description": "Create a function to gather the current state of all pumps and sensors, format it into a single JSON object, and broadcast it to all connected WebSocket clients periodically.",
+        "details": "Define a comprehensive JSON structure for the device state, e.g., `{\"pumps\": [true, false, false, true], \"sensors\": {\"temperature\": 25.5, \"luminosity\": 80}}`. Implement a timer (e.g., using `millis()`) to trigger this broadcast every 2-3 seconds.",
+        "testStrategy": "Connect a WebSocket client and observe the stream of incoming state messages. Verify that the data accurately reflects the current status of the relays and the values being read from the sensors.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          3
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement State-Gathering Functions for Pumps and Sensors",
+            "description": "Create dedicated helper functions to read the current state of all pump relays and the latest values from the temperature and luminosity sensors. This centralizes data collection before formatting.",
+            "dependencies": [],
+            "details": "In `src/main.cpp`, create a function `void getPumpStates(bool states[], int count)` that reads the digital state of each pump pin into the provided array. Also, create a function `void getSensorReadings(float &temperature, int &luminosity)` that performs readings from the connected sensors and updates the referenced variables. These functions will abstract the hardware interaction.",
+            "status": "pending",
+            "testStrategy": "Call these functions from the `loop()` and print their output to the Serial monitor to verify they are reading correct values from the hardware."
+          },
+          {
+            "id": 2,
+            "title": "Create JSON Serialization Function for Device State",
+            "description": "Using the ArduinoJson library, implement a function that takes the collected pump and sensor data, formats it into the specified JSON structure, and returns it as a string.",
+            "dependencies": [
+              "4.1"
+            ],
+            "details": "In `src/main.cpp`, create a function `String buildStateJson()`. This function will first call `getPumpStates()` and `getSensorReadings()`. It will then use a `StaticJsonDocument` to build a JSON object with a 'pumps' array and a 'sensors' nested object. Finally, it will use `serializeJson()` to convert the document into a `String` for broadcasting. Ensure `ArduinoJson` is a dependency in `platformio.ini`.",
+            "status": "pending",
+            "testStrategy": "Call `buildStateJson()` from `setup()` and print the resulting string to the Serial monitor. Verify the structure and values are correct."
+          },
+          {
+            "id": 3,
+            "title": "Implement Non-Blocking Timer in Main Loop",
+            "description": "Add the necessary variables and logic to the main `loop()` function to create a non-blocking timer using the `millis()` function. This timer will control the frequency of the state broadcasts.",
+            "dependencies": [],
+            "details": "In `src/main.cpp`, declare a global `unsigned long lastStateBroadcastTime = 0;` and a constant `const long stateBroadcastInterval = 2500;` (for 2.5 seconds). In the `loop()` function, add an `if (millis() - lastStateBroadcastTime >= stateBroadcastInterval)` block and update `lastStateBroadcastTime = millis();` inside it.",
+            "status": "pending",
+            "testStrategy": "Add a `Serial.println(\"Timer fired\");` inside the `if` block and monitor the serial output to confirm it prints at the expected interval without halting other operations."
+          },
+          {
+            "id": 4,
+            "title": "Create a Generic WebSocket Broadcast Function",
+            "description": "Implement a function that encapsulates the logic for broadcasting a message to all connected WebSocket clients. This function will be called by the timer.",
+            "dependencies": [
+              "4.2"
+            ],
+            "details": "In `src/main.cpp`, create a function `void broadcastFullState()`. This function will call `buildStateJson()` to get the latest state as a string. It will then use the existing `AsyncWebSocket` instance (e.g., `ws`) to send this string to all clients using `ws.textAll(stateJsonString);`. Add a log message to indicate a broadcast has occurred.",
+            "status": "pending",
+            "testStrategy": "Temporarily call `broadcastFullState()` when a new WebSocket client connects to verify that a single state message is sent and received correctly."
+          },
+          {
+            "id": 5,
+            "title": "Integrate Broadcast Function with Timer in Main Loop",
+            "description": "Connect the periodic timer to the broadcast function to enable automatic, recurring state updates to all WebSocket clients.",
+            "dependencies": [
+              "4.3",
+              "4.4"
+            ],
+            "details": "In the main `loop()` function within `src/main.cpp`, place a call to the `broadcastFullState()` function inside the `if` block of the non-blocking timer created in subtask 4.3. This will trigger the state gathering, JSON serialization, and broadcast every 2.5 seconds.",
+            "status": "pending",
+            "testStrategy": "Connect a WebSocket client (e.g., using a browser-based tool) and observe the console. Verify that a complete JSON state message is received every 2-3 seconds and that the values update when a pump is manually toggled or sensor values change."
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Frontend: Display Real-time Sensor Data and Pump Status",
+        "description": "Update the Next.js dashboard to parse the device state messages from the WebSocket and display the data in real-time. The UI should accurately reflect the true state of the hardware.",
+        "details": "In the main dashboard component, add a WebSocket `onmessage` handler. Parse the incoming JSON state object. Use React state (`useState`) to store the pump and sensor data. Bind this state to the UI elements (e.g., the `checked` prop of Switches, text fields for sensor values).",
+        "testStrategy": "Load the web UI. Manually change the state of a pump (if possible) or change sensor conditions (e.g., heat the temperature sensor). Verify that the dashboard updates automatically within a few seconds without a page refresh.",
+        "priority": "high",
+        "dependencies": [
+          2,
+          4
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add React State for Sensor and Light Data",
+            "description": "In `src/app/page.tsx`, introduce `useState` hooks to manage the state for water temperature, pH level, and light status. Initialize them with default values like `null` or placeholder strings to be displayed before the first message is received.",
+            "dependencies": [],
+            "details": "In the `Dashboard` component, add the following states: `const [temperature, setTemperature] = useState<number | null>(null);`, `const [phLevel, setPhLevel] = useState<number | null>(null);`, and `const [lightStatus, setLightStatus] = useState({ on: false, color: 'N/A' });`. These will hold the real-time data received from the WebSocket.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement WebSocket `onmessage` Handler",
+            "description": "In the `useEffect` hook within `src/app/page.tsx`, attach an `onmessage` event handler to the `websocket` instance. This handler will be the entry point for processing all incoming state updates from the ESP32.",
+            "dependencies": [],
+            "details": "Inside the `useEffect` where the `WebSocket` is instantiated, add the `onmessage` property: `websocket.onmessage = (event) => { ... };`. The logic for parsing and state updates will be placed inside this function in subsequent tasks.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Parse Incoming JSON Data in `onmessage` Handler",
+            "description": "Within the `onmessage` handler, parse the incoming `event.data` string as JSON. Implement error handling using a `try...catch` block to prevent the application from crashing due to malformed messages and log any errors.",
+            "dependencies": [
+              "5.2"
+            ],
+            "details": "Inside the `onmessage` handler, implement the parsing logic: `try { const data = JSON.parse(event.data); /* process data */ } catch (error) { console.error('Failed to parse WebSocket message:', event.data, error); }`. This ensures robust handling of incoming data.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Update Pump and Sensor State from Parsed Data",
+            "description": "Inside the `try` block of the `onmessage` handler, after successfully parsing the JSON, check for expected keys (`pumps`, `temperature`, `ph`, `light`) in the data object. Use the corresponding state setters (`setPumps`, `setTemperature`, etc.) to update the component's state.",
+            "dependencies": [
+              "5.1",
+              "5.3"
+            ],
+            "details": "Add logic to update state based on the received data structure, e.g., `if (data.pumps) { setPumps(data.pumps); }`, `if (data.temperature !== undefined) { setTemperature(data.temperature); }`, `if (data.ph !== undefined) { setPhLevel(data.ph); }`, `if (data.light) { setLightStatus(data.light); }`.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Bind Sensor and Light State to UI Elements",
+            "description": "Modify the JSX in `src/app/page.tsx` to display the values from the new state variables for temperature, pH, and light status. Replace the static placeholder text with dynamic data, providing a fallback for initial `null` values.",
+            "dependencies": [
+              "5.1"
+            ],
+            "details": "Update the sensor `CardContent` divs. For example, replace `<div className=\"text-2xl font-bold\">-- °C</div>` with `<div className=\"text-2xl font-bold\">{temperature !== null ? `${temperature.toFixed(1)} °C` : '-- °C'}</div>`. Do the same for pH and light status cards.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Firmware: Persist Pump States in Non-Volatile Storage (NVS)",
+        "description": "Implement logic to save the last known state of the pumps to the ESP32's NVS. The states should be restored upon device startup to handle power outages.",
+        "details": "Use the `Preferences` library. In `setup()`, read the saved pump states from NVS and apply them. After every successful pump state change, write the new state array to NVS.",
+        "testStrategy": "Set some pumps to 'on' via the UI. Power cycle the ESP32. Verify that upon restart, the pumps return to the 'on' state and the UI reflects this correctly after connecting.",
+        "priority": "medium",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Include Preferences Library and Initialize Object",
+            "description": "Add the necessary include directive for the `Preferences.h` library and create a global instance of the `Preferences` class in `src/main.cpp` to be used for NVS operations.",
+            "dependencies": [],
+            "details": "In `src/main.cpp`, add `#include <Preferences.h>`. Then, declare a global object: `Preferences preferences;`. This object will provide the interface for reading from and writing to NVS.",
+            "status": "pending",
+            "testStrategy": "Compile the firmware to ensure the new header is found and the object is instantiated without errors."
+          },
+          {
+            "id": 2,
+            "title": "Implement `savePumpStates()` Function",
+            "description": "Create a new function, `void savePumpStates()`, that saves the entire `pumpStates` boolean array to NVS using the `Preferences` library.",
+            "dependencies": [
+              "6.1"
+            ],
+            "details": "The function should call `preferences.begin(\"pump-states\", false)` to open the NVS namespace. Use `preferences.putBytes(\"states\", pumpStates, sizeof(pumpStates))` to store the array. Finally, call `preferences.end()`. Use a unique key like `\"pump-states\"` for the namespace and `\"states\"` for the data.",
+            "status": "pending",
+            "testStrategy": "Temporarily call this function from `setup()` and check serial output for any errors. Use a separate test sketch to verify that data is being written to the specified NVS key."
+          },
+          {
+            "id": 3,
+            "title": "Integrate State Saving into `setPumpState`",
+            "description": "Modify the existing `setPumpState` function in `src/main.cpp` to call the new `savePumpStates()` function after a pump's state has been successfully updated.",
+            "dependencies": [
+              "6.2"
+            ],
+            "details": "In `src/main.cpp`, locate the `setPumpState(int pumpIndex, bool state)` function. After the line `digitalWrite(PUMP_PINS[pumpIndex], state ? HIGH : LOW);`, add a call to `savePumpStates();`. This ensures that every manual state change is immediately persisted.",
+            "status": "pending",
+            "testStrategy": "Use the web UI to toggle a pump. Monitor the serial output to confirm that the `savePumpStates` function is called and executes without error after the pump state is changed."
+          },
+          {
+            "id": 4,
+            "title": "Implement State Restoration Logic in `setup()`",
+            "description": "In the `setup()` function, add logic to read the saved pump states from NVS and populate the global `pumpStates` array. This should happen before the pump pins are configured.",
+            "dependencies": [
+              "6.1"
+            ],
+            "details": "In `setup()`, before the `for` loop that initializes pump pins, call `preferences.begin(\"pump-states\", true)` to open the namespace in read-only mode. Check if the `\"states\"` key exists using `preferences.isKey(\"states\")`. If it does, use `preferences.getBytes(\"states\", pumpStates, sizeof(pumpStates))` to load the data into the `pumpStates` array. Call `preferences.end()` afterwards.",
+            "status": "pending",
+            "testStrategy": "Add serial print statements to show whether states were loaded from NVS or if the default state is being used. After performing subtask 3, restart the device and verify the logs show that states were successfully loaded."
+          },
+          {
+            "id": 5,
+            "title": "Apply Restored States to GPIO Pins on Startup",
+            "description": "Modify the GPIO initialization loop in `setup()` to set the physical state of each pump's pin according to the value loaded into the `pumpStates` array.",
+            "dependencies": [
+              "6.4"
+            ],
+            "details": "Locate the `for` loop in `setup()` that iterates through `PUMP_PINS`. Change the line `digitalWrite(PUMP_PINS[i], LOW);` to `digitalWrite(PUMP_PINS[i], pumpStates[i] ? HIGH : LOW);`. This will ensure the physical relays match the restored state immediately upon boot.",
+            "status": "pending",
+            "testStrategy": "Set several pumps to ON via the UI. Power cycle the ESP32. Observe the physical relays (or connected LEDs) to confirm they turn on at startup, corresponding to the last saved state."
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Firmware: Implement REST API for Schedule Management",
+        "description": "Create REST endpoints on the ESP32's web server to allow creating, reading, and deleting schedules. Schedules should be stored in the SPIFFS/LittleFS filesystem.",
+        "details": "Use the `AsyncWebServer` and `ArduinoJson` libraries. Define endpoints: `GET /api/schedules` to list all, `POST /api/schedules` to add a new one, and `DELETE /api/schedules/{id}` to remove one. Store schedules as a JSON array in a file (e.g., `/schedules.json`).",
+        "testStrategy": "Use Postman to send HTTP requests to the ESP32's IP address. Test creating a schedule (POST), verifying it's listed (GET), and then deleting it (DELETE). Check the serial logs for errors.",
+        "priority": "high",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Filesystem Helpers for Schedule JSON",
+            "description": "Implement helper functions to read from and write to the `/schedules.json` file in the SPIFFS/LittleFS filesystem. This will encapsulate file I/O and JSON parsing logic.",
+            "dependencies": [],
+            "details": "Create two functions: `DynamicJsonDocument readSchedules()` and `bool writeSchedules(const DynamicJsonDocument& doc)`. The `readSchedules` function should open `/schedules.json`, deserialize it into a `DynamicJsonDocument`, and return it. If the file doesn't exist, it should return a document containing an empty JSON array `[]`. The `writeSchedules` function should serialize the provided document and write it to the file, overwriting the existing content.",
+            "status": "pending",
+            "testStrategy": "Write a temporary test function in `setup()` to call `writeSchedules` with a sample JSON array, then call `readSchedules` and print the result to the Serial monitor to verify the content is read back correctly."
+          },
+          {
+            "id": 2,
+            "title": "Implement GET /api/schedules Endpoint",
+            "description": "Create the `AsyncWebServer` handler to list all existing schedules.",
+            "dependencies": [
+              "7.1"
+            ],
+            "details": "Implement a handler function for the `GET /api/schedules` route. This function will call the `readSchedules()` helper. It will then serialize the resulting `JsonDocument` into a string and send it as the response with a 200 OK status and a `Content-Type` of `application/json`.",
+            "status": "pending",
+            "testStrategy": "After flashing, use a web browser or Postman to send a GET request to `http://<ESP32_IP>/api/schedules`. Verify it returns an empty array `[]` initially."
+          },
+          {
+            "id": 3,
+            "title": "Implement POST /api/schedules Endpoint",
+            "description": "Create the `AsyncWebServer` handler to add a new schedule. This involves parsing the request body and updating the schedules file.",
+            "dependencies": [
+              "7.1"
+            ],
+            "details": "Implement a handler for `POST /api/schedules` using `onRequestBody`. Inside the handler, parse the incoming request body (which is a JSON object for the new schedule) using `ArduinoJson`. Generate a unique ID for the new schedule (e.g., using `millis()`). Call `readSchedules()` to get the current array, add the new schedule object to the `JsonArray`, and then use `writeSchedules()` to save the updated array back to the filesystem. Respond with 201 Created and the newly created schedule object.",
+            "status": "pending",
+            "testStrategy": "Use Postman to send a POST request to `http://<ESP32_IP>/api/schedules` with a JSON body like `{\"name\":\"Morning Pump\",\"hour\":8,\"minute\":30,\"duration\":5}`. Then, use the GET endpoint to verify the new schedule was added with a unique ID."
+          },
+          {
+            "id": 4,
+            "title": "Implement DELETE /api/schedules/{id} Endpoint",
+            "description": "Create the `AsyncWebServer` handler to remove a specific schedule by its ID.",
+            "dependencies": [
+              "7.1"
+            ],
+            "details": "Implement a handler for `DELETE /api/schedules/{id}`. The URL will contain a placeholder for the ID. Extract the `id` from the request placeholders. Call `readSchedules()`, iterate through the `JsonArray` to find the object with the matching `id`, and remove it. Use `writeSchedules()` to save the modified array. Respond with 204 No Content on success or 404 Not Found if the ID doesn't exist.",
+            "status": "pending",
+            "testStrategy": "First, create a schedule using the POST endpoint. Note its ID. Then, send a DELETE request to `http://<ESP32_IP>/api/schedules/<ID>`. Finally, use the GET endpoint to confirm the schedule has been removed."
+          },
+          {
+            "id": 5,
+            "title": "Register New API Handlers with AsyncWebServer",
+            "description": "Integrate the newly created REST endpoint handlers into the main web server configuration.",
+            "dependencies": [
+              "7.2",
+              "7.3",
+              "7.4"
+            ],
+            "details": "In the primary firmware file (e.g., `ESP32-Tuya.ino` or `main.cpp`), locate the web server setup section. Add the `server.on()` calls to register the handlers for `GET /api/schedules`, `POST /api/schedules`, and `DELETE /api/schedules/{id}` with the global `AsyncWebServer` instance. Ensure the POST handler is correctly configured to process a JSON body.",
+            "status": "pending",
+            "testStrategy": "After flashing the complete firmware, perform an end-to-end test: create a schedule (POST), list all schedules to see it (GET), delete it (DELETE), and list them again to confirm it's gone. Monitor serial output for any errors during the process."
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Firmware: Implement Scheduling Engine",
+        "description": "Develop the core logic that processes the stored schedules. This requires time synchronization via NTP and checking the current time against schedule entries to automate pump control.",
+        "details": "In `setup()`, initialize NTP to get the current time. In the main `loop()`, periodically check the current time. Iterate through the loaded schedules. If the current time falls within a schedule's active window, call the `setPumpState` function. Ensure this logic co-exists with manual control.",
+        "testStrategy": "Create a schedule via the API that starts in 1-2 minutes. Monitor the serial output and the physical relay to confirm the pump turns on at the correct time and turns off when the schedule ends.",
+        "priority": "high",
+        "dependencies": [
+          6,
+          7
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Configure and Initialize NTP Client for Time Synchronization",
+            "description": "Add necessary libraries and configuration for NTP. In `setup()`, initialize the NTP client to synchronize the ESP32's internal clock with a time server. This is the foundation for all time-based scheduling.",
+            "dependencies": [],
+            "details": "In `src/config.h`, add constants for the NTP server (e.g., `pool.ntp.org`) and timezone information. In `src/main.cpp`, include `<time.h>` and add `configTime()` within `setup()` to perform the initial time synchronization after the WiFi connection is established. Log the retrieved time to the serial monitor for verification.",
+            "status": "pending",
+            "testStrategy": "After flashing, monitor the serial output upon boot. Verify that the device connects to WiFi and then successfully prints the current date and time, confirming NTP synchronization."
+          },
+          {
+            "id": 2,
+            "title": "Define Schedule Data Structures and State Origin",
+            "description": "Create the necessary data structures for storing schedule information and update the `StateChangeOrigin` enum to include schedules. This provides the types needed for the scheduling engine.",
+            "dependencies": [],
+            "details": "In `src/types.h`, define a `struct Schedule` containing fields such as `enabled` (bool), `pumpIndex` (int), `startHour` (int), `startMinute` (int), `durationMinutes` (int). In the same file, add `SCHEDULE` to the `StateChangeOrigin` enum. In `src/state.cpp`, declare a global `std::vector<Schedule> schedules;` to hold the runtime schedules (this will be populated by the API from Task 7).",
+            "status": "pending",
+            "testStrategy": "Compile the firmware to ensure the new struct and enum value are correctly defined and do not cause compilation errors. No runtime test is needed for this subtask."
+          },
+          {
+            "id": 3,
+            "title": "Periodically Fetch Current Time in Main Loop",
+            "description": "Implement a non-blocking mechanism in the main `loop()` to periodically fetch the current synchronized time and store it for use by the scheduling engine.",
+            "dependencies": [
+              "8.1"
+            ],
+            "details": "In `src/main.cpp`, declare a global `struct tm timeinfo;` and a `unsigned long lastTimeUpdate = 0;`. In the `loop()` function, add logic using `millis()` to call `getLocalTime(&timeinfo)` approximately once every second. This ensures the `timeinfo` struct is kept reasonably up-to-date without blocking the loop.",
+            "status": "pending",
+            "testStrategy": "Add a temporary serial print inside the time update block in `loop()` to print the current time every few seconds. Flash and verify the time is continuously updated and printed correctly."
+          },
+          {
+            "id": 4,
+            "title": "Implement Core Schedule Evaluation Logic",
+            "description": "Develop the core function that iterates through all defined schedules and determines the desired state of each pump based on the current time.",
+            "dependencies": [
+              "8.2",
+              "8.3"
+            ],
+            "details": "Create new files `src/scheduler.h` and `src/scheduler.cpp`. In `scheduler.cpp`, implement a function `void checkSchedules()`. This function will maintain a boolean array of desired pump states, initialized to `false`. It will iterate through the global `schedules` vector. For each `enabled` schedule, it will calculate if the current time from `timeinfo` falls within the `[startTime, startTime + durationMinutes)` window. If it does, it sets the corresponding pump's desired state to `true`. This function will be called from the main `loop()`.",
+            "status": "pending",
+            "testStrategy": "In `setup()`, manually add a test schedule to the `schedules` vector that is set to activate shortly after boot. In `checkSchedules()`, add serial prints to log which schedules are being evaluated and what the resulting desired pump state is. Verify the logic correctly identifies the active schedule."
+          },
+          {
+            "id": 5,
+            "title": "Integrate Scheduler with Pump State Control",
+            "description": "Connect the output of the schedule evaluation logic to the `setPumpState` function, ensuring it only triggers a change when the scheduled state differs from the actual state.",
+            "dependencies": [
+              "8.4"
+            ],
+            "details": "Modify the `checkSchedules` function in `src/scheduler.cpp`. After determining the desired state for all pumps, iterate from `i = 0` to `NUM_PUMPS`. Compare the `desiredPumpStates[i]` with the global `pumpStates[i]`. If they differ, call `setPumpState(i, desiredPumpStates[i], StateChangeOrigin::SCHEDULE)`. This ensures manual overrides are respected until the next schedule-mandated state change and prevents redundant calls to `setPumpState`.",
+            "status": "pending",
+            "testStrategy": "Create a schedule via the (future) API or hardcode one that starts in 1-2 minutes. Monitor the serial output and the physical relay to confirm the pump turns on at the correct time. After it turns on, manually turn it off via another mechanism (e.g., physical button if implemented). Verify that on the next schedule check (within a minute), the scheduler turns the pump back on."
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Frontend: Create Schedule Management UI",
+        "description": "Build a new page or modal in the Next.js application to manage schedules. The UI should allow users to view, create, and delete schedules by interacting with the ESP32's REST API.",
+        "details": "Use Shadcn/UI components like `<Table>`, `<Dialog>`, `<form>`, and `<TimePicker>` (or equivalent input) to build the interface. Fetch existing schedules on component mount. Implement form submission to POST new schedules and button clicks to send DELETE requests.",
+        "testStrategy": "Navigate to the new scheduling UI. Create a schedule for a specific pump and time. Verify the schedule appears in the list. Delete the schedule and confirm it is removed from the list. Verify the ESP32 hardware responds to the created schedule.",
+        "priority": "high",
+        "dependencies": [
+          5,
+          7
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Schedule Management Dialog Component",
+            "description": "Create a new file `frontend/src/components/schedules/ScheduleDialog.tsx`. This component will use Shadcn's `<Dialog>`, `<DialogTrigger>`, `<DialogContent>`, etc., to create the main modal for schedule management. Add a `<Button>` as the trigger on the main dashboard page (`frontend/src/app/page.tsx`) to open the dialog.",
+            "dependencies": [],
+            "details": "The initial component should contain the basic layout for the schedule manager, including a title (`<DialogHeader>`), a placeholder area for the table and form, and a close button (`<DialogFooter>`). The trigger button on the main page should be clearly labeled 'Manage Schedules'.",
+            "status": "pending",
+            "testStrategy": "Navigate to the main dashboard. Verify the 'Manage Schedules' button is visible. Click the button and confirm that an empty modal dialog appears on the screen."
+          },
+          {
+            "id": 2,
+            "title": "Fetch and Display Schedules in a Table",
+            "description": "Within the `ScheduleDialog` component, implement the logic to fetch existing schedules from the ESP32's `/api/schedules` endpoint when the dialog is opened. Use `useEffect` and `useState` to manage the data. Display the fetched schedules using Shadcn's `<Table>` component.",
+            "dependencies": [
+              "9.1"
+            ],
+            "details": "Create an API utility function to handle the GET request. The table should have columns for Pump ID, Time, and an actions column for future buttons. Define a `Schedule` type based on the API response. Handle loading and error states appropriately.",
+            "status": "pending",
+            "testStrategy": "Open the schedule management dialog. Verify that a network request is made to `/api/schedules`. Confirm that the schedules returned from the API are correctly rendered in the table. If there are no schedules, the table should show a 'No schedules found' message."
+          },
+          {
+            "id": 3,
+            "title": "Build the 'Add New Schedule' Form",
+            "description": "Create a form to add a new schedule. This can be placed within the main `ScheduleDialog` or in a nested dialog. Use `shadcn/ui`'s `<Form>` components, likely integrated with `react-hook-form` and `zod` for validation. The form needs inputs for pump selection, and a time input.",
+            "dependencies": [
+              "9.1"
+            ],
+            "details": "The form should include a `<Select>` for choosing the pump (e.g., Pump 1-4), an `<Input type=\"time\" />` for the schedule time, and a submit button. Set up basic validation to ensure a pump and time are selected.",
+            "status": "pending",
+            "testStrategy": "Open the schedule dialog. Verify the 'Add Schedule' form or a button to trigger it is visible. Interact with the form fields and confirm that they accept valid inputs (e.g., selecting a pump, entering a time)."
+          },
+          {
+            "id": 4,
+            "title": "Implement Schedule Creation (POST)",
+            "description": "Connect the 'Add New Schedule' form's submission handler to send a POST request to the `/api/schedules` endpoint. On successful creation, the form should be reset, and the schedule list in the table should be automatically refreshed to include the new entry.",
+            "dependencies": [
+              "9.2",
+              "9.3"
+            ],
+            "details": "Create an API utility function for the POST request, which will take the schedule data as an argument and send it in the request body. After the POST request is successful, re-fetch the list of schedules to update the UI without requiring a manual refresh.",
+            "status": "pending",
+            "testStrategy": "Fill out and submit the 'Add New Schedule' form. Verify in the browser's network tab that a POST request is sent to `/api/schedules` with the correct JSON payload. Confirm the new schedule appears in the table immediately after."
+          },
+          {
+            "id": 5,
+            "title": "Implement Schedule Deletion (DELETE)",
+            "description": "In the schedule table, add a 'Delete' button to the actions column for each schedule row. Implement an `onClick` handler for this button that sends a DELETE request to `/api/schedules/{schedule_id}`.",
+            "dependencies": [
+              "9.2"
+            ],
+            "details": "The delete action should ideally trigger a confirmation dialog (`<AlertDialog>`) to prevent accidental deletion. Upon confirmation, call an API utility function for the DELETE request. After a successful deletion, refresh the schedule list to remove the entry from the table.",
+            "status": "pending",
+            "testStrategy": "Click the 'Delete' button for a schedule in the list. Confirm a confirmation prompt appears. After confirming, verify a DELETE request is sent to the correct endpoint. The schedule should be removed from the table."
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Firmware: Implement RGB LED PWM Control",
+        "description": "Implement the firmware logic to control the RGB lighting using the ESP32's LEDC (PWM) peripheral. Create a function and a WebSocket/REST endpoint to set the color.",
+        "details": "Configure three LEDC channels for R, G, and B pins in `setup()`. Create a function `setRgbColor(r, g, b)` that uses `ledcWrite()` to set the duty cycle for each channel. Expose this function via a WebSocket command `{\"action\": \"set_rgb\", \"color\": {\"r\": 255, \"g\": 100, \"b\": 50}}`.",
+        "testStrategy": "Connect an RGB LED to the configured GPIO pins. Send WebSocket commands with different RGB values and verify that the LED changes to the correct color.",
+        "priority": "medium",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Define RGB Pin and LEDC Configuration Constants",
+            "description": "In `src/main.cpp`, define constants for the RGB LED GPIO pins and the LEDC (PWM) configuration parameters such as frequency, resolution, and channel indices for Red, Green, and Blue.",
+            "dependencies": [],
+            "details": "At the top of `src/main.cpp`, near where `PUMP_PINS` are defined, add new constants. For example: `const int RED_PIN = 25;`, `const int GREEN_PIN = 26;`, `const int BLUE_PIN = 27;`. Also define LEDC parameters: `const int LEDC_FREQ = 5000;`, `const int LEDC_RESOLUTION = 8;`, and channel constants like `const int RED_CHANNEL = 0;`.",
+            "status": "pending",
+            "testStrategy": "Code review to ensure constants are defined correctly and logically grouped."
+          },
+          {
+            "id": 2,
+            "title": "Initialize LEDC Channels in setup()",
+            "description": "In the `setup()` function within `src/main.cpp`, configure the three LEDC channels for the R, G, and B components using the constants defined in the previous subtask.",
+            "dependencies": [
+              "10.1"
+            ],
+            "details": "Use `ledcSetup(CHANNEL, LEDC_FREQ, LEDC_RESOLUTION)` for each of the three channels (Red, Green, Blue). Then, attach the corresponding GPIO pin to each channel using `ledcAttachPin(PIN, CHANNEL)`. This should be done within the `setup()` function before the main loop starts.",
+            "status": "pending",
+            "testStrategy": "After flashing, check the serial monitor for any errors during setup. Optionally, use a multimeter or oscilloscope on the pins to verify a PWM signal is present after initialization (it will be at 0% duty cycle)."
+          },
+          {
+            "id": 3,
+            "title": "Implement the setRgbColor() Function",
+            "description": "Create a new function `void setRgbColor(uint8_t r, uint8_t g, uint8_t b)` in `src/main.cpp` that sets the duty cycle for each LEDC channel.",
+            "dependencies": [
+              "10.2"
+            ],
+            "details": "The function will take three 8-bit arguments (0-255) for red, green, and blue. Inside the function, call `ledcWrite(CHANNEL, value)` for each of the three configured LEDC channels to update the LED's color. Also, create global variables (e.g., `currentR`, `currentG`, `currentB`) to store the current color state.",
+            "status": "pending",
+            "testStrategy": "Temporarily call this function from `setup()` with a test color (e.g., `setRgbColor(255, 0, 0)`) and verify the physical RGB LED turns red upon boot."
+          },
+          {
+            "id": 4,
+            "title": "Handle 'set_rgb' WebSocket Command",
+            "description": "In `src/main.cpp`, extend the `handleWebSocketMessage` function to process a new action, `set_rgb`, to control the RGB LED.",
+            "dependencies": [
+              "10.3"
+            ],
+            "details": "Add an `else if (strcmp(action, \"set_rgb\") == 0)` block. Inside this block, parse the nested JSON object `doc[\"color\"]` to extract the `r`, `g`, and `b` values. Call the `setRgbColor(r, g, b)` function with the parsed values. Ensure proper JSON parsing and error handling, similar to the existing `set_pump` action.",
+            "status": "pending",
+            "testStrategy": "Connect a WebSocket client and send the message `{\"action\": \"set_rgb\", \"color\": {\"r\": 0, \"g\": 255, \"b\": 100}}`. Verify the physical LED changes to the specified color and that there are no errors in the serial monitor."
+          },
+          {
+            "id": 5,
+            "title": "Integrate RGB State into WebSocket Broadcast",
+            "description": "Modify the state broadcasting mechanism to include the current RGB color, ensuring clients are updated when the color changes.",
+            "dependencies": [
+              "10.4"
+            ],
+            "details": "Based on the pattern in `handleWebSocketMessage` where `broadcastState()` is called after a state change, ensure this is also called after setting the RGB color. Then, locate the `broadcastState()` function (or equivalent) and modify the `StaticJsonDocument` to include a new key, e.g., `\"rgb_color\": {\"r\": currentR, \"g\": currentG, \"b\": currentB}`. This will add the color to the periodic state updates mentioned in Task 4.",
+            "status": "pending",
+            "testStrategy": "With a WebSocket client connected, send a `set_rgb` command. Verify that the client immediately receives a broadcasted message containing the new RGB color state. Also, verify that subsequent periodic broadcasts continue to include the correct color."
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Frontend: Add RGB Color Picker to Dashboard",
+        "description": "Integrate a color picker component into the dashboard UI to allow users to select a color for the pool lighting and send the command to the ESP32.",
+        "details": "Add a library like `react-color`. Place the color picker in a `<Popover>` triggered by a button. On color change, send the RGB value to the ESP32 using the WebSocket command defined in the previous task. The UI should also display the current color broadcasted from the ESP32 state.",
+        "testStrategy": "Open the UI and use the color picker. Verify the physical RGB LED changes color in real-time as you select different hues. Verify the color picker updates if the color is changed by another means.",
+        "priority": "medium",
+        "dependencies": [
+          5,
+          10
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Install react-color and Create Color Control Component File",
+            "description": "Add the `react-color` library and its corresponding type definitions to the project's dependencies. Create a new component file to house the color picker logic.",
+            "dependencies": [],
+            "details": "Run `npm install react-color` and `npm install -D @types/react-color`. Create a new file at `src/components/controls/ColorPickerControl.tsx`. This file will contain the React component for the color picker functionality.",
+            "status": "pending",
+            "testStrategy": "Verify that the dependencies are added to `package.json` and the new component file is created in the specified directory without causing any build errors."
+          },
+          {
+            "id": 2,
+            "title": "Implement Popover UI with Shadcn/UI and react-color",
+            "description": "Build the user interface for the color picker using a Shadcn/UI Popover. The Popover will be triggered by a Button and will contain a color picker from the `react-color` library.",
+            "dependencies": [
+              "11.1"
+            ],
+            "details": "In `src/components/controls/ColorPickerControl.tsx`, use Shadcn/UI components: `<Popover>`, `<PopoverTrigger>`, and `<PopoverContent>`. The trigger will be a `<Button>`. Inside the `<PopoverContent>`, render a color picker component from `react-color`, such as `<SketchPicker />`. Initially, this will be a static layout without state logic.",
+            "status": "pending",
+            "testStrategy": "Load the dashboard page where the component is temporarily placed. Verify that a button is visible and clicking it opens a popover containing the color picker."
+          },
+          {
+            "id": 3,
+            "title": "Send Color Change Commands via WebSocket",
+            "description": "Implement the logic to send a WebSocket command to the ESP32 whenever the user selects a new color in the picker.",
+            "dependencies": [
+              "11.2"
+            ],
+            "details": "In `ColorPickerControl.tsx`, use the existing WebSocket context/hook (similar to the pump switches). Add an `onChangeComplete` handler to the `<SketchPicker />` component. Inside the handler, format the selected color into the required JSON message (e.g., `{ \"command\": \"set_rgb\", \"value\": { \"r\": r, \"g\": g, \"b\": b } }`) and send it using the WebSocket instance. Consider debouncing the handler to prevent flooding the connection.",
+            "status": "pending",
+            "testStrategy": "Open the browser's developer tools to the Network tab. Use the color picker and verify that a WebSocket message with the correct `set_rgb` command and RGB payload is sent upon finalizing a color selection."
+          },
+          {
+            "id": 4,
+            "title": "Display Current Color from ESP32 State",
+            "description": "Connect the component to the global state management for WebSockets to display the current color as reported by the ESP32.",
+            "dependencies": [
+              "11.2"
+            ],
+            "details": "In `ColorPickerControl.tsx`, subscribe to the WebSocket state context that is updated by the `onmessage` handler (as implemented for Task 5). Read the current RGB color from the state (e.g., from a `state.lighting.rgb` object). Use this value to set the `color` prop of the `<SketchPicker />` component and to set the background color of the `<PopoverTrigger>` button, providing visual feedback of the current state.",
+            "status": "pending",
+            "testStrategy": "With the application running, manually send a WebSocket message from the browser console to simulate an ESP32 state update with a new color. Verify that the trigger button's background color and the color picker's selected color update automatically."
+          },
+          {
+            "id": 5,
+            "title": "Integrate ColorPickerControl into the Main Dashboard",
+            "description": "Place the newly created `ColorPickerControl` component into the main dashboard UI alongside other device controls.",
+            "dependencies": [
+              "11.3",
+              "11.4"
+            ],
+            "details": "Locate the main dashboard component file (e.g., `src/app/page.tsx` or a `Dashboard.tsx` component). Import the `ColorPickerControl` component and render it within the dashboard layout, likely in a card or section dedicated to lighting controls. Ensure it is visually aligned with existing controls like the pump switches.",
+            "status": "pending",
+            "testStrategy": "Load the main dashboard page. Verify the color picker control is present and fully functional. Test the end-to-end flow: select a color, see the physical LED change, and see the UI control reflect the state broadcasted back from the ESP32."
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Firmware: Integrate Tuya IoT SDK for Cloud Connectivity",
+        "description": "Integrate the Tuya IoT SDK into the PlatformIO project. Implement the necessary boilerplate to connect the ESP32 to the Tuya cloud using credentials provisioned over the local network.",
+        "details": "Add the Tuya SDK as a library dependency. Follow the SDK documentation to initialize the Tuya service. Implement the WiFi provisioning process (e.g., SmartConfig or AP mode) to get WiFi and Tuya credentials. Handle connection/disconnection events with the Tuya cloud.",
+        "testStrategy": "Flash the firmware. Use the Tuya Smart Life app to attempt to pair a new device. Verify via serial logs that the ESP32 receives credentials, connects to the home WiFi, and successfully registers with the Tuya cloud.",
+        "priority": "high",
+        "dependencies": [
+          8
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add Tuya IoT SDK Library to PlatformIO",
+            "description": "Modify the `platformio.ini` file to include the official Tuya IoT SDK for C++ as a library dependency. This will allow the compiler to find and link the necessary Tuya libraries.",
+            "dependencies": [],
+            "details": "Open `platformio.ini` and add `tuya/tuya-iot-sdk-for-embeded-cpp` to the `lib_deps` section. Ensure the version is recent and compatible. After modification, build the project to force PlatformIO to download and install the dependency.",
+            "status": "pending",
+            "testStrategy": "Compile the project successfully. Check the `.pio/libdeps` directory to confirm the Tuya SDK has been downloaded."
+          },
+          {
+            "id": 2,
+            "title": "Initialize Tuya SDK with Product Credentials",
+            "description": "In the firmware's main setup function, initialize the Tuya IoT service. This requires a Product ID (PID) and firmware key obtained from the Tuya IoT Platform.",
+            "dependencies": [
+              "12.1"
+            ],
+            "details": "In `src/main.cpp`, include the main Tuya header `tuya_cloud_service.h`. In the `setup()` function, call `tuya_iot_sdk_init` with the PID and firmware key. Store these credentials securely, for instance in a new `src/tuya_config.h` file, which should be added to `.gitignore`.",
+            "status": "pending",
+            "testStrategy": "Flash the firmware and monitor the serial output. Verify that the logs show the Tuya SDK initializing without errors. The device will not connect yet, but the initialization sequence should complete."
+          },
+          {
+            "id": 3,
+            "title": "Implement WiFi Provisioning via SmartConfig",
+            "description": "Implement the logic to start the Tuya SmartConfig (EZ-Connect) pairing mode. The device should enter this mode if it fails to connect to a previously configured WiFi network upon startup.",
+            "dependencies": [
+              "12.2"
+            ],
+            "details": "Modify the `setup()` function in `src/main.cpp`. Check for saved WiFi credentials. If they don't exist or the connection fails, call the appropriate Tuya SDK function to start SmartConfig mode (e.g., `tuya_iot_wf_gw_unactive`). The device will then be discoverable by the Tuya Smart Life app.",
+            "status": "pending",
+            "testStrategy": "Erase the ESP32's flash to simulate a first-time boot. Flash the new firmware. Verify via serial logs that the device enters WiFi provisioning mode. The device should be discoverable in the Tuya app's 'Add Device' screen."
+          },
+          {
+            "id": 4,
+            "title": "Implement Tuya SDK Event Callback Handler",
+            "description": "Create and register a callback function to handle various status events from the Tuya SDK, such as receiving WiFi credentials, connecting to the local network, and connecting/disconnecting from the Tuya cloud.",
+            "dependencies": [
+              "12.3"
+            ],
+            "details": "Define a global callback function (e.g., `void on_tuya_status_changed(TY_GW_STATUS_E status)`) in `src/main.cpp`. Inside this function, use a switch statement to handle key statuses like `STAT_UNPROVISION`, `STAT_GOT_IP`, `STAT_CLOUD_CONN`, etc. Log these state changes to the serial monitor for debugging. Register this callback during SDK initialization.",
+            "status": "pending",
+            "testStrategy": "Use the Tuya app to pair with the device. Monitor the serial output to confirm that the correct sequence of events is logged: receiving credentials, connecting to WiFi (got IP), and connecting to the Tuya cloud."
+          },
+          {
+            "id": 5,
+            "title": "Define Data Points (DPs) and Implement Command Handler",
+            "description": "Define the Tuya Data Points (DPs) that correspond to the device's functions (e.g., pump relays). Implement the `dp_process` callback function to handle incoming commands from the Tuya cloud and control the device accordingly.",
+            "dependencies": [
+              "12.4"
+            ],
+            "details": "In `src/tuya_config.h` or a similar file, define the DP IDs for each pump (e.g., `#define DPID_PUMP_1 101`). In `src/main.cpp`, implement the `dp_process` function. Inside it, check the incoming `dpid`, parse the value, and call the existing `setPumpState` function. Register this handler during SDK initialization.",
+            "status": "pending",
+            "testStrategy": "After pairing the device, use the Tuya app to toggle the controls for the pumps. Verify via serial logs and by observing the physical relays that the `dp_process` function is called and correctly controls the pump states."
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "Tuya Platform: Define Device and Data Points (DPs)",
+        "description": "On the Tuya IoT Developer Platform, create a new product based on a custom template. Define all the necessary Data Points (DPs) for the pool controller.",
+        "details": "Define boolean DPs for each of the 4 pumps (e.g., `dp_id: 101, name: Pump 1, type: Boolean`). Define integer/value DPs for temperature and luminosity. Define a string/JSON DP for RGB color control (e.g., `dp_id: 106, name: Light Color, type: String, format: 'hsv'`).",
+        "testStrategy": "This is a configuration task. The test is to have a complete and logical device definition on the Tuya platform that can be used for firmware integration. Review the created DPs to ensure they cover all core features.",
+        "priority": "high",
+        "dependencies": [
+          12
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create New Product on Tuya IoT Platform",
+            "description": "Log into the Tuya IoT Developer Platform and initiate the creation of a new product. Select 'Create' and choose a 'Custom Solution' to define the product from scratch.",
+            "dependencies": [],
+            "details": "Navigate to Product > Development. Choose a suitable category, such as 'Small Home Appliances' -> 'Pool Pump'. Name the product 'Smart Pool Controller' and select 'Wi-Fi' as the protocol. This step establishes the product container for all subsequent definitions.",
+            "status": "pending",
+            "testStrategy": "Verify that a new product named 'Smart Pool Controller' exists in the 'Developing' state within your Tuya IoT Platform account."
+          },
+          {
+            "id": 2,
+            "title": "Define Boolean DPs for Four Pumps",
+            "description": "In the 'Function Definition' tab of the new product, create four distinct Data Points (DPs) of type 'Boolean' to control each of the four pumps.",
+            "dependencies": [
+              "13.1"
+            ],
+            "details": "Create four 'Switch' type DPs. Assign sequential IDs, for example: DP ID 101 ('Pump 1'), DP ID 102 ('Pump 2'), DP ID 103 ('Pump 3'), and DP ID 104 ('Pump 4'). Ensure the data type is set to 'Boolean' for all four.",
+            "status": "pending",
+            "testStrategy": "Confirm that four Boolean DPs, correctly named for each pump, are listed under the 'Function Definition' section of the product."
+          },
+          {
+            "id": 3,
+            "title": "Define Value DPs for Temperature and Luminosity Sensors",
+            "description": "Add two 'Value' type Data Points to report sensor readings for water temperature and ambient luminosity.",
+            "dependencies": [
+              "13.1"
+            ],
+            "details": "Create a 'Value' DP for temperature (e.g., DP ID 105, 'Temperature', Unit: °C, Min: -10, Max: 50, Step: 1, Scale: 1). Create another 'Value' DP for luminosity (e.g., DP ID 106, 'Luminosity', Unit: lux, Min: 0, Max: 2000, Step: 10, Scale: 0).",
+            "status": "pending",
+            "testStrategy": "Verify that two 'Value' DPs for Temperature and Luminosity, with their respective units and ranges, are present in the 'Function Definition' list."
+          },
+          {
+            "id": 4,
+            "title": "Define String DP for RGB Light Control",
+            "description": "Create a 'String' type Data Point to handle complex color control for the pool's RGB light.",
+            "dependencies": [
+              "13.1"
+            ],
+            "details": "Create a 'Colour' or 'String' DP (e.g., DP ID 107, 'Light Color'). If using the 'Colour' type, configure it for HSV (Hue, Saturation, Value). If 'Colour' type is not available in custom mode, use 'String' and note that the expected format will be a JSON string like '{\"h\":360, \"s\":1000, \"v\":1000}'.",
+            "status": "pending",
+            "testStrategy": "Confirm that a DP for color control exists and its data type (Colour/String) and properties are correctly configured as specified."
+          },
+          {
+            "id": 5,
+            "title": "Configure and Finalize the Device Panel UI",
+            "description": "Navigate to the 'Device Panel' tab and arrange the defined DPs into a user-friendly mobile app interface. Once satisfied, save the panel and review the complete product definition.",
+            "dependencies": [
+              "13.2",
+              "13.3",
+              "13.4"
+            ],
+            "details": "Select a 'DIY Style Panel'. Drag and drop UI components for each DP: switches for pumps, data readouts for sensors, and a color wheel for the light control. Arrange them logically. Save the panel configuration. This completes the device definition phase on the platform.",
+            "status": "pending",
+            "testStrategy": "Preview the configured device panel. Ensure all 7 DPs (4 pumps, 2 sensors, 1 light) are represented by functional UI elements. The product status should be ready for the next development stage (Device Debugging)."
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Firmware: Map Device State to Tuya Data Points (DPs)",
+        "description": "Implement the two-way synchronization between the ESP32's local state and the Tuya cloud DPs. Report local changes to the cloud and handle commands from the cloud.",
+        "details": "Implement the DP reporting function to send updates to Tuya whenever a pump state or sensor value changes. Implement the DP command handler function that gets called by the SDK when a command is received from the cloud. In this handler, parse the command and call local functions like `setPumpState` or `setRgbColor`.",
+        "testStrategy": "Use the Tuya Smart Life app to control the device. Toggle a pump switch in the app and verify the physical relay on the ESP32 activates. Manually heat the temperature sensor and verify the value updates in the app.",
+        "priority": "high",
+        "dependencies": [
+          12,
+          13
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Define Tuya DP IDs in Configuration",
+            "description": "Define the mapping between device features (pumps, sensors, RGB) and their corresponding Tuya Data Point (DP) IDs in a central configuration file.",
+            "dependencies": [],
+            "details": "In `src/config.h`, add `#define` macros for each DP ID. For example, `PUMP1_SWITCH_DPID 1`, `PUMP2_SWITCH_DPID 2`, `TEMPERATURE_SENSOR_DPID 101`, `RGB_COLOR_DPID 102`. These constants will be used for both reporting state and handling commands, ensuring a single source of truth for the DP mapping.",
+            "status": "pending",
+            "testStrategy": "Review `src/config.h` to ensure all required DP IDs for pumps, sensors, and RGB control are defined and have unique integer values."
+          },
+          {
+            "id": 2,
+            "title": "Implement Generic DP State Reporting Functions",
+            "description": "Create functions to report the state of different DP types (boolean, value, string) to the Tuya cloud using the Tuya SDK's DP update API.",
+            "dependencies": [
+              "14.1"
+            ],
+            "details": "In `src/main.cpp`, implement helper functions like `void report_dp_bool(int dp_id, bool value)`, `void report_dp_value(int dp_id, int value)`, and `void report_dp_string(int dp_id, const char* value)`. These functions will wrap the `tuya_iot_dp_update_json` SDK call, simplifying state reporting from other parts of the code.",
+            "status": "pending",
+            "testStrategy": "Create a temporary test function that calls these helpers with known DP IDs and values. Verify in the Tuya IoT Platform logs that the device reports these DP values correctly."
+          },
+          {
+            "id": 3,
+            "title": "Integrate DP Reporting on Local State Change",
+            "description": "Modify existing functions that change the device's state to call the new DP reporting functions, ensuring the Tuya cloud is updated immediately after a local change.",
+            "dependencies": [
+              "14.2"
+            ],
+            "details": "In `src/main.cpp`, locate the `setPumpState` function and add a call to `report_dp_bool` after the pump's physical state is changed. In the main `loop()` function, after sensor values (like temperature) are read, add calls to `report_dp_value` to push the new readings to the cloud. This ensures local changes are reflected in the Tuya app.",
+            "status": "pending",
+            "testStrategy": "Manually trigger a state change (e.g., via a physical button if available or a test function) and observe the Tuya Smart Life app to confirm the UI updates accordingly. Heat a sensor and verify the value changes in the app."
+          },
+          {
+            "id": 4,
+            "title": "Implement DP Command Handler for Pumps and Sensors",
+            "description": "Implement the logic within the Tuya SDK's command callback function to handle incoming commands for boolean (pumps) and value (e.g., temperature threshold) DPs.",
+            "dependencies": [
+              "14.1"
+            ],
+            "details": "In `src/main.cpp`, populate the `dp_process_obj_cmd` callback function. Add a `switch` statement based on `dp->dpid`. For each pump DP ID, extract the boolean value from `dp->value.dp_bool` and call the local `setPumpState` function. This will allow the Tuya app to control the physical relays.",
+            "status": "pending",
+            "testStrategy": "Use the Tuya Smart Life app to toggle the switches for the pumps. Verify that the corresponding physical relays on the ESP32 turn on and off as commanded. Check serial logs for confirmation."
+          },
+          {
+            "id": 5,
+            "title": "Implement DP Command Handler for RGB Color Control",
+            "description": "Extend the DP command handler to process commands for the RGB light, which typically uses a string-based DP for color data.",
+            "dependencies": [
+              "14.1"
+            ],
+            "details": "In the `dp_process_obj_cmd` function, add a case for the `RGB_COLOR_DPID`. The Tuya color DP often sends data as a hex string (e.g., \"RRGGBBhhssvv\"). Parse the first 6 characters of the string value from `dp->value.dp_str` to get the R, G, and B hex values. Convert them to integers and call the local `setRgbColor(r, g, b)` function.",
+            "status": "pending",
+            "testStrategy": "Use the color picker in the Tuya Smart Life app to change the RGB light's color. Verify that the physical RGB LED connected to the ESP32 changes to the selected color."
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-09-18T01:51:38.652Z",
+      "updated": "2025-09-18T02:05:07.448Z",
+      "description": "Tasks for master context"
+    }
+  }
+}
